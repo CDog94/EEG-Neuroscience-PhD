@@ -10,8 +10,8 @@ ft_defaults;
 cd(master_dir);
 
 %% WHAT TYPE OF EXPERIMENT(s) ARE WE RUNNING?
-experiment_types = {'pure-factor-effect'};
-desired_design_mtxs = {"headache"};
+experiment_types = {'onsets-2-8-explicit'};
+desired_design_mtxs = {"no-factor"};
 type_of_interaction = 'habituation';
 start_latency = 0.056;
 end_latency = 0.256;
@@ -1036,7 +1036,7 @@ end
                 cfg.correctm = 'cluster';
                 cfg.neighbours = neighbours;
                 cfg.clusteralpha = 0.025;
-                cfg.numrandomization = 1000;
+                cfg.numrandomization = 3000;
                 cfg.tail = 0;
                 cfg.design = design_matrix;
                 cfg.computeprob = 'yes';
@@ -1061,7 +1061,6 @@ end
                             || contains(experiment_type, 'trial-level-2-8') || contains(experiment_type, 'pure-factor-effect')
                         cfg.ivar = 1;
                         cfg.clusterthreshold = 'nonparametric_individual';
-                        cfg.statistic = 'ft_statfun_indepsamplesregrTMeanIntercept';
                         stat = ft_timelockstatistics(cfg, data{:});
 
                         %disp(stat.posclusters(1).prob)
@@ -3122,7 +3121,7 @@ if contains(experiment_type, 'onsets-2-8')
 
     plot(NaN(1), 'Color', '#0072BD');
     plot(NaN(1), 'Color', '#D95319');
-    plot(NaN(1), 'Color', '#FFFF00');
+    plot(NaN(1), 'Color', 'g');
     legend({'Thin', 'Medium', 'Thick'},'Location','bestoutside', 'FontSize', labels_text_size)
 
     plot(time, ci.dist_thin_avg, 'Color', '#0072BD', 'LineWidth', plot_line_width, 'HandleVisibility','off')
@@ -3142,9 +3141,9 @@ if contains(experiment_type, 'onsets-2-8')
     set(h,'facealpha',.10)
 
 
-    plot(time, ci.dist_thick_avg, 'color', '#FFE600','LineWidth', plot_line_width, 'HandleVisibility','off');
-    plot(time, ci.dist_thick_high, 'LineWidth', 0.01, 'color', '#FFE600','HandleVisibility','off');
-    plot(time, ci.dist_thick_low, 'LineWidth', 0.01, 'color', '#FFE600','HandleVisibility','off');
+    plot(time, ci.dist_thick_avg, 'color', 'g','LineWidth', plot_line_width, 'HandleVisibility','off');
+    plot(time, ci.dist_thick_high, 'LineWidth', 0.01, 'color', 'g','HandleVisibility','off');
+    plot(time, ci.dist_thick_low, 'LineWidth', 0.01, 'color', 'g','HandleVisibility','off');
     x2 = [time, fliplr(time)];
     inBetween = [ci.dist_thick_high, fliplr(ci.dist_thick_low)];
     h = fill(x2, inBetween, [1,0.92,0], 'HandleVisibility','off', 'LineStyle','none');
