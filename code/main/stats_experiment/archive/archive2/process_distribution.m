@@ -1,0 +1,136 @@
+function results = process_distribution(final_mdl_poly, nPValuesTest, sampleSizeTest, nPermutationsTest, ...
+                               paramValues, distributionType, waitbarTitle)
+% Process any distribution type with parameters
+% Parameters:
+%   final_mdl_poly - Final polynomial model
+%   nPValuesTest - Number of p-values per parameter
+%   sampleSizeTest - Sample size per group
+%   nPermutationsTest - Number of permutations
+%   paramValues - Array of parameter values to test
+%   distributionType - String indicating distribution type ('chi', 'weibull', 'lognormal')
+%   waitbarTitle - Title for the waitbar
+
+% Initialize cell array for parallel results
+results_cell = cell(length(paramValues), 1);
+
+% Create a waitbar
+h = waitbar(0, waitbarTitle, 'Name', 'Progress');
+
+% Create a parallel.pool.DataQueue to track progress
+dataQueue = parallel.pool.DataQueue;
+
+% Set up a listener to update the waitbar
+count = 0;
+numParams = length(paramValues);
+afterEach(dataQueue, @(~) updateWaitbar(h, numParams, count));
+
+% Process each parameter in parallel
+parfor p = 1:length(paramValues)
+    param = paramValues(p);
+    fprintf('Processing %s param=%.2f...\n', distributionType, param);
+    
+    % Initialize arrays to collect data for this parameter
+    biasedPVals = zeros(nPValuesTest, 1);
+    unbiasedPVals = zeros(nPValuesTest, 1);
+    measuredSkewness = zeros(nPValuesTest, 1);
+    
+    % Pre-generate all uniform data for unbiased p-values
+    uniformData = unifrnd(-0.5, 0.5, sampleSizeTest, nPValuesTest);
+    
+    % Group 1 is all zeros
+    group1 = zeros(sampleSizeTest, 1);
+    
+    % Generate data and process all p-values
+    for i = 1:nPValuesTest
+        % Generate appropriate distribution data based on distribution type
+        switch lower(distributionType)
+            case 'chi'
+                group2 = chi2rnd(param, sampleSizeTest, 1) - param;
+            case 'weibull'
+                weibullMean = gamma(1 + 1/param);
+                group2 = wblrnd(1, param, sampleSizeTest, 1) - weibullMean;
+            case 'lognormal'
+                mu = -param^2/2;
+                group2 = lognrnd(mu, param, sampleSizeTest, 1) - 1;
+            otherwise
+                error('Unknown distribution type: %s', distributionType);
+        end
+        
+        % Calculate Bowley's Quartile Skewness
+        measuredSkewness(i) = bowleys_skewness(group2);
+        
+        % Perform permutation tests
+        biasedPVals(i) = permutation_test(group1, group2, nPermutationsTest);
+        unbiasedPVals(i) = permutation_test(group1, uniformData(:, i), nPermutationsTest);
+    end
+    
+    % Sort the p-values independently
+    biasedPVals = sort(biasedPVals);
+    unbiasedPVals = sort(unbiasedPVals);
+    measuredSkewness = sort(measuredSkewness);
+    
+    % Prepare feature vector for prediction
+    X_test = [biasedPVals, measuredSkewness];
+    X_test_poly = [X_test, X_test(:,1).^2, X_test(:,1).^3, ...
+                X_test(:,2).^2, X_test(:,1).*X_test(:,2)];
+    
+    % Use the model to predict
+    predictedPVals = predict(final_mdl_poly, X_test_poly);
+    
+    % Calculate local RMSE
+    local_errors = predictedPVals - unbiasedPVals;
+    local_RMSE = sqrt(mean(local_errors.^2));
+    
+    % Create a structure for results
+    local_results = struct();
+    local_results.BiasedPValues = biasedPVals;
+    local_results.UnbiasedPValues = unbiasedPVals;
+    local_results.PredictedPValues = predictedPVals;
+    local_results.MeasuredSkewness = measuredSkewness;
+    local_results.Parameter = repmat(param, length(biasedPVals), 1);
+    local_results.RMSE = local_RMSE;
+    
+    % Store data in cell array
+    results_cell{p} = local_results;
+    
+    fprintf('RMSE for %s param=%.2f: %.6f\n', distributionType, param, local_RMSE);
+    
+    % Send update to the dataQueue
+    send(dataQueue, p);
+end
+
+% Close the waitbar
+close(h);
+
+% Combine all results
+results = struct();
+results.BiasedPValues = [];
+results.UnbiasedPValues = [];
+results.PredictedPValues = [];
+results.MeasuredSkewness = [];
+results.Parameter = [];
+results.RMSE_ByParam = zeros(length(paramValues), 1);
+
+for p = 1:length(paramValues)
+    results.BiasedPValues = [results.BiasedPValues; results_cell{p}.BiasedPValues];
+    results.UnbiasedPValues = [results.UnbiasedPValues; results_cell{p}.UnbiasedPValues];
+    results.PredictedPValues = [results.PredictedPValues; results_cell{p}.PredictedPValues];
+    results.MeasuredSkewness = [results.MeasuredSkewness; results_cell{p}.MeasuredSkewness];
+    results.Parameter = [results.Parameter; results_cell{p}.Parameter];
+    results.RMSE_ByParam(p) = results_cell{p}.RMSE;
+end
+
+% Calculate overall RMSE
+errors = results.PredictedPValues - results.UnbiasedPValues;
+results.RMSE_Overall = sqrt(mean(errors.^2));
+end
+
+function updateWaitbar(h, numParams, countVal)
+    persistent count
+    if isempty(count)
+        count = 0;
+    end
+    count = count + 1;
+    waitbar(count/numParams, h, sprintf('Processing: %d/%d complete (%.1f%%)', ...
+        count, numParams, (count/numParams)*100));
+end
