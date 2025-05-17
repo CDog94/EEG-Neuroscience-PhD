@@ -1,18 +1,18 @@
 %% Main script for p-value correction model
 % This script fits the model on the entire dataset without cross-validation
 
-%% Configuration
 config = struct(...
-    'sampleSize', 50, ...         % Sample size per group
-    'nPermutations', 1000, ...    % Number of permutations for permutation test
-    'fixedScale', 3.0, ...        % Fixed scale parameter for all distributions
-    'maxIterations', 5000, ...      % Maximum number of iterations for data generation
-    'generateData', 0, ...        % Set to 1 to generate new data, 0 to load existing data
-    'outputPath', './results', ... % Output path for results and visualizations
-    'nPValuesTest', 100, ...      % Number of p-values per distribution parameter for testing
-    'sampleSizeTest', 100, ...    % Sample size per group for testing
-    'nPermutationsTest', 1000, ... % Number of permutations for testing
-    'randomSeed', 42 ...          % Random seed for reproducibility
+    'sampleSize', 50, ...
+    'nPermutations', 1000, ...
+    'fixedScale', 3.0, ...
+    'maxIterations', 5000, ...
+    'generateData', 0, ...
+    'outputPath', './results', ...
+    'nPValuesTest', 25000, ... % Number of p-values per distribution parameter for testing
+    'sampleSizeTest', 100, ...
+    'nPermutationsTest', 1000, ...
+    'randomSeed', 42, ...
+    'distributionMode', 'mixed' ... % Options: 'mixed', 'gamma', 'weibull'
 );
 
 % Define distribution parameters to test
@@ -37,17 +37,28 @@ pool = start_parallel_pool('NumWorkers', [], 'ThreadsPerWorker', 1);
 %% Generate or load training data
 fprintf('=== Data Generation/Loading ===\n');
 if config.generateData
-    fprintf('Generating data for all skewness values with %d iterations...\n', config.maxIterations);
+    fprintf('Generating data for all skewness values with %d iterations using "%s" distribution mode...\n', ...
+        config.maxIterations, config.distributionMode);
     tic;
-    allData = generate_training_data(config.maxIterations, config.sampleSize, config.nPermutations);
+    allData = generate_training_data(config.maxIterations, config.sampleSize, ...
+        config.nPermutations, config.distributionMode);
     elapsedTime = toc;
     fprintf('Data generation complete in %.2f seconds.\n', elapsedTime);
     
-    % Save the full dataset
-    save(fullfile(config.outputPath, 'pvalue_correction_full_data.mat'), 'allData');
+    % Save the full dataset with distribution mode in filename
+    filename = sprintf('pvalue_correction_full_data_%s.mat', config.distributionMode);
+    save(fullfile(config.outputPath, filename), 'allData');
 else
-    fprintf('Loading previously generated data...\n');
-    load(fullfile(config.outputPath, 'pvalue_correction_full_data.mat'));
+    % Try to load dataset with distribution mode in filename
+    filename = sprintf('pvalue_correction_full_data_%s.mat', config.distributionMode);
+    if exist(fullfile(config.outputPath, filename), 'file')
+        fprintf('Loading %s distribution mode data...\n', config.distributionMode);
+        load(fullfile(config.outputPath, filename));
+    else
+        % Fall back to generic filename
+        fprintf('Specific distribution mode file not found. Loading generic data file...\n');
+        load(fullfile(config.outputPath, 'pvalue_correction_full_data.mat'));
+    end
 end
 
 %% Display summary statistics
@@ -58,13 +69,23 @@ fprintf('Number of significant biased p-values (p < 0.05): %d (%.2f%%)\n', ...
 fprintf('Number of significant unbiased p-values (p < 0.05): %d (%.2f%%)\n', ...
     sum(allData.UnbiasedPValue < 0.05), 100*sum(allData.UnbiasedPValue < 0.05)/height(allData));
 
+% Display distribution types if present
+if ismember('DistributionType', allData.Properties.VariableNames)
+    distTypes = unique(allData.DistributionType);
+    fprintf('\nDistribution Types:\n');
+    for i = 1:length(distTypes)
+        count = sum(strcmp(allData.DistributionType, distTypes{i}));
+        fprintf('%s: %d samples (%.1f%%)\n', distTypes{i}, count, 100*count/height(allData));
+    end
+end
+
 %% Train final model on all data (without cross-validation)
 fprintf('\n=== Training Final Model on All Data ===\n');
 
-% Prepare all data using all four moments plus Bowley's skewness
+% Prepare all data using all four moments
 X_all = [allData.BiasedPValue, allData.MeasuredMean, ...
          allData.MeasuredVariance, allData.MeasuredSkewness, ...
-         allData.MeasuredKurtosis, allData.MeasuredBowleySkewness];
+         allData.MeasuredKurtosis];
 y_all = allData.UnbiasedPValue;
 
 % Prepare polynomial features with all moments
@@ -73,8 +94,7 @@ X_all_poly = [X_all, ...
               X_all(:,2).^2, X_all(:,1).*X_all(:,2), ... % Mean terms
               X_all(:,3).^2, X_all(:,1).*X_all(:,3), ... % Variance terms
               X_all(:,4).^2, X_all(:,1).*X_all(:,4), ... % Skewness terms
-              X_all(:,5).^2, X_all(:,1).*X_all(:,5), ... % Kurtosis terms
-              X_all(:,6).^2, X_all(:,1).*X_all(:,6)]; % BowleySkewness terms
+              X_all(:,5).^2, X_all(:,1).*X_all(:,5)]; % Kurtosis terms
 
 % Train final model
 final_mdl_poly = fitlm(X_all_poly, y_all);
@@ -83,17 +103,16 @@ final_mdl_poly = fitlm(X_all_poly, y_all);
 fprintf('\n============= MODEL COEFFICIENTS =============\n');
 coeffs = final_mdl_poly.Coefficients.Estimate;
 featureNames = {'Intercept', 'BiasedPValue', 'MeasuredMean', 'MeasuredVariance', ...
-                'MeasuredSkewness', 'MeasuredKurtosis', 'MeasuredBowleySkewness', ...
+                'MeasuredSkewness', 'MeasuredKurtosis', ...
                 'BiasedPValue^2', 'BiasedPValue^3', ...
                 'MeasuredMean^2', 'BiasedPValue*MeasuredMean', ...
                 'MeasuredVariance^2', 'BiasedPValue*MeasuredVariance', ...
                 'MeasuredSkewness^2', 'BiasedPValue*MeasuredSkewness', ...
-                'MeasuredKurtosis^2', 'BiasedPValue*MeasuredKurtosis', ...
-                'MeasuredBowleySkewness^2', 'BiasedPValue*MeasuredBowleySkewness'};
+                'MeasuredKurtosis^2', 'BiasedPValue*MeasuredKurtosis'};
 
 % Display simple equation
-fprintf('Polynomial: UnbiasedPValue = %.4f + (%.4f * BiasedPValue) + (%.4f * MeasuredMean) + (%.4f * MeasuredVariance) + (%.4f * MeasuredSkewness) + (%.4f * MeasuredKurtosis) + (%.4f * MeasuredBowleySkewness) + ...\n', ...
-    coeffs(1), coeffs(2), coeffs(3), coeffs(4), coeffs(5), coeffs(6), coeffs(7));
+fprintf('Polynomial: UnbiasedPValue = %.4f + (%.4f * BiasedPValue) + (%.4f * MeasuredMean) + (%.4f * MeasuredVariance) + (%.4f * MeasuredSkewness) + (%.4f * MeasuredKurtosis) + ...\n', ...
+    coeffs(1), coeffs(2), coeffs(3), coeffs(4), coeffs(5), coeffs(6));
 
 % Display full equation
 fprintf('\nFull polynomial equation:\n');
@@ -112,9 +131,10 @@ y_pred = predict(final_mdl_poly, X_all_poly);
 full_rmse = sqrt(mean((y_pred - y_all).^2));
 fprintf('\nRMSE on full dataset: %.6f\n', full_rmse);
 
-% Save the final model
-save(fullfile(config.outputPath, 'pvalue_correction_poly_model.mat'), 'final_mdl_poly');
-fprintf('Final polynomial model saved to %s\n', fullfile(config.outputPath, 'pvalue_correction_poly_model.mat'));
+% Save the final model with distribution mode in filename
+modelFilename = sprintf('pvalue_correction_poly_model_%s.mat', config.distributionMode);
+save(fullfile(config.outputPath, modelFilename), 'final_mdl_poly');
+fprintf('Final polynomial model saved to %s\n', fullfile(config.outputPath, modelFilename));
 
 %% Test with multiple distributions
 fprintf('\n=== Testing with Multiple Distributions ===\n');

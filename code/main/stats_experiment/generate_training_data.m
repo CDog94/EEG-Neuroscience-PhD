@@ -1,295 +1,371 @@
-function trainingData = generate_training_data(maxIterations, sampleSize, nPermutations)
-% Generates training data for a fixed number of iterations rather than targeting
-% a specific number of p-values. Optimized for high-performance systems.
-%
-% Parameters:
-%   maxIterations - Maximum number of iterations to run
-%   sampleSize - Sample size per group
-%   nPermutations - Number of permutations for permutation test
-%
-% Returns:
-%   trainingData - Table containing all generated p-values and parameters
+%% Enhanced parallel QQ Plot analysis of symmetric vs nonsymmetric distributions
+% This script compares p-value bias in multiple symmetric and nonsymmetric distributions
+% with parallel processing for improved performance
 
-% Define skewness bins for stratification in the realistic Bowley's range
-skewnessBins = [-0.95, -0.9, -0.7, -0.5, -0.3, -0.1, 0.1, 0.3, 0.5, 0.7, 0.9, 0.95];
-numBins = length(skewnessBins) - 1;
+%% Configuration
+rng(42); % Set random seed for reproducibility
+sampleSize = 50; % Sample size per group
+nPermutations = 1000; % Number of permutations for each test
+nSamples = 1000; % Number of samples to generate for each distribution
 
-% Set a reasonable capacity estimate for arrays - this is just an estimate
-estimatedSamples = maxIterations * 50; % Assuming ~50 valid samples per iteration
-initialCapacity = estimatedSamples * 1.2; % Add 20% buffer
+% Create output directory if it doesn't exist
+outputPath = './results';
+if ~exist(outputPath, 'dir')
+    mkdir(outputPath);
+end
 
-% Initialize storage with pre-allocated arrays
-biasedPValues = zeros(initialCapacity, 1);
-unbiasedPValues = zeros(initialCapacity, 1);
-measuredMeans = zeros(initialCapacity, 1);
-measuredVariances = zeros(initialCapacity, 1);
-measuredSkewness = zeros(initialCapacity, 1);
-measuredKurtosis = zeros(initialCapacity, 1);
-measuredBowleySkewness = zeros(initialCapacity, 1);
-shapeParams = zeros(initialCapacity, 1);
-distributionTypes = cell(initialCapacity, 1);
-
-% Initialize bin counts
-currentCountPerBin = zeros(numBins, 1);
-totalCollected = 0;
-
-% Start tracking time
-startTime = tic;
-lastPrintTime = tic;
-
-% Start parallel pool with maximum workers
+%% Set up parallel processing
+% Start parallel pool if not already running
 if isempty(gcp('nocreate'))
-    c = parcluster('local');
-    c.NumWorkers = 24; % Use all 24 processors
-    saveProfile(c);
-    poolobj = parpool('local', 23); % Use 23 workers, leaving 1 for the main process
-    
-    % Set thread pool size for maximum performance
-    poolobj.SpecifyObjectSharingBehavior = false;
-    maxNumCompThreads(1); % Limit the main thread to 1 computational thread
+    % Get number of available cores
+    numCores = feature('numcores');
+    % Use 1 fewer than available to keep system responsive
+    poolSize = max(1, numCores - 1);
+    fprintf('Starting parallel pool with %d workers...\n', poolSize);
+    parpool('local', poolSize);
+else
+    fprintf('Using existing parallel pool.\n');
 end
 
-% Print header for progress tracking
-fprintf('=============================================================\n');
-fprintf('ITERATION-LIMITED DATA GENERATION (MAXIMUM %d ITERATIONS)\n', maxIterations);
-fprintf('=============================================================\n');
-fprintf('Max iterations: %d\n', maxIterations);
-fprintf('Sample size per group: %d\n', sampleSize);
-fprintf('Permutations per test: %d\n', nPermutations);
-fprintf('=============================================================\n\n');
+%% Define distributions to test
+% Format: {name, type, parameters, is_symmetric}
+distributions = {
+    % Symmetric distributions
+    {'Normal', 'normal', [0, 1], true}, % (mean, std)
+    {'Student_t3', 't', 3, true}, % 3 degrees of freedom
+    {'Student_t5', 't', 5, true}, % 5 degrees of freedom
+    {'Student_t10', 't', 10, true}, % 10 degrees of freedom
+    {'Uniform', 'uniform', [-0.5, 0.5], true}, % (min, max)
+    {'Laplace', 'laplace', [0, 1], true}, % (location, scale)
+    {'Logistic', 'logistic', [0, 1], true}, % (location, scale)
+    
+    % Nonsymmetric distributions
+    {'ChiSquared_df1', 'chi', 1, false}, % 1 degree of freedom
+    {'ChiSquared_df3', 'chi', 3, false}, % 3 degrees of freedom
+    {'ChiSquared_df5', 'chi', 5, false}, % 5 degrees of freedom
+    {'Exponential', 'exp', 1, false}, % rate parameter
+    {'Gamma_1_1', 'gamma', [1, 1], false}, % (shape, scale)
+    {'Gamma_2_1', 'gamma', [2, 1], false}, % (shape, scale)
+    {'Weibull_0.5', 'weibull', 0.5, false}, % shape parameter
+    {'Weibull_2', 'weibull', 2, false}, % shape parameter
+    {'LogNormal_0.5', 'lognormal', 0.5, false}, % sigma parameter
+    {'LogNormal_1', 'lognormal', 1, false}, % sigma parameter
+    {'Beta_2_5', 'beta', [2, 5], false}, % (alpha, beta) parameters
+    {'F_dist_5_2', 'f', [5, 2], false} % (df1, df2) parameters
+};
 
-% Storage for tracking progress
-progressData = struct();
-progressData.iterations = [];
-progressData.samplesCollected = [];
-progressData.binCounts = [];
-progressData.elapsedTime = [];
+nDist = length(distributions);
+fprintf('Testing %d distributions (%d symmetric, %d nonsymmetric)\n', ...
+    nDist, sum([distributions{:,4}]), sum(~[distributions{:,4}]));
 
-% PERFORMANCE: Use batch processing to minimize overhead
-iterations = 0;
-batchSize = 500; % Process more samples per batch for better throughput
+%% Generate and test distributions
+fprintf('Generating %d samples for each distribution (n=%d) with parallel processing...\n', ...
+    nSamples, sampleSize);
 
-% Keep track of total permutation tests for reporting
-totalPermTests = 0;
+% Initialize cell array to store results
+allPValues = cell(nDist, 1);
+allSkewness = cell(nDist, 1);
+allRMSE = zeros(nDist, 1);
 
-while iterations < maxIterations
-    iterations = iterations + 1;
+% Process each distribution
+parfor distIdx = 1:nDist
+    distInfo = distributions{distIdx};
+    distName = distInfo{1};
+    distType = distInfo{2};
+    distParam = distInfo{3};
     
-    % PERFORMANCE: Use larger batches for better parallel efficiency
-    batchBiased = zeros(batchSize, 1);
-    batchUnbiased = zeros(batchSize, 1);
-    batchMeans = zeros(batchSize, 1);
-    batchVariances = zeros(batchSize, 1);
-    batchSkewness = zeros(batchSize, 1);
-    batchKurtosis = zeros(batchSize, 1);
-    batchBowleySkewness = zeros(batchSize, 1);
-    batchShapeParams = zeros(batchSize, 1);
-    batchDistTypes = cell(batchSize, 1);
+    fprintf('Processing %s distribution...\n', distName);
     
-    % PERFORMANCE: Pre-allocate uniform data for all samples at once
-    uniformData = rand(sampleSize, batchSize) - 0.5; % Range [-0.5, 0.5]
+    % Initialize arrays for this distribution
+    p_values = zeros(nSamples, 1);
+    skew_values = zeros(nSamples, 1);
     
-    % PERFORMANCE: Generate gamma shape parameters for the whole batch
-    % Using a wider range to get a broader variety of skewness values
-    gammaShapeParams = exp(unifrnd(log(0.1), log(20), batchSize, 1));
+    % Group 1 is always zeros for all tests
+    group1 = zeros(sampleSize, 1);
     
-    % PERFORMANCE: Process the batch in parallel with optimized workload
-    parfor i = 1:batchSize
-        % PERFORMANCE: Create group1 as zeros array
-        group1 = zeros(sampleSize, 1);
+    % Generate samples in batches for better parallel performance
+    batchSize = 100; % Process in batches of 100
+    nBatches = ceil(nSamples / batchSize);
+    
+    for batchIdx = 1:nBatches
+        % Calculate start and end indices for this batch
+        startIdx = (batchIdx - 1) * batchSize + 1;
+        endIdx = min(batchIdx * batchSize, nSamples);
+        batchCount = endIdx - startIdx + 1;
         
-        % Use gamma distribution for all samples
-        shapeParam = gammaShapeParams(i);
-        scaleParam = 1.0;
+        % Pre-allocate batch results
+        batch_p = zeros(batchCount, 1);
+        batch_skew = zeros(batchCount, 1);
         
-        % Generate gamma data centered at mean
-        meanGamma = shapeParam * scaleParam;
-        group2 = gamrnd(shapeParam, scaleParam, sampleSize, 1) - meanGamma;
-        
-        % Store parameter and distribution type
-        batchShapeParams(i) = shapeParam;
-        batchDistTypes{i} = 'gamma';
-        
-        % Calculate all moments
-        moments = calculate_moments(group2);
-        batchMeans(i) = moments.mean;
-        batchVariances(i) = moments.variance;
-        batchSkewness(i) = moments.skewness;
-        batchKurtosis(i) = moments.kurtosis;
-        batchBowleySkewness(i) = moments.bowleySkewness;
-        
-        % PERFORMANCE: Optimized permutation test
-        batchBiased(i) = permutation_test(group1, group2, nPermutations);
-        batchUnbiased(i) = permutation_test(group1, uniformData(:, i), nPermutations);
-    end
-    
-    % Update total permutation test count
-    totalPermTests = totalPermTests + 2 * batchSize;
-    
-    % Assign each sample to appropriate skewness bin
-    samplesAddedThisIteration = 0;
-    
-    for i = 1:batchSize
-        % Find which bin this sample belongs to
-        binIdx = find(batchBowleySkewness(i) >= skewnessBins(1:end-1) & ...
-                     batchBowleySkewness(i) < skewnessBins(2:end), 1);
-        
-        % Add the sample if it falls in a valid bin
-        if ~isempty(binIdx)
-            % Check if we need to resize arrays (safety check)
-            if totalCollected + 1 > length(biasedPValues)
-                % Increase capacity by 50%
-                newCapacity = round(length(biasedPValues) * 1.5);
-                biasedPValues(end+1:newCapacity) = 0;
-                unbiasedPValues(end+1:newCapacity) = 0;
-                measuredMeans(end+1:newCapacity) = 0;
-                measuredVariances(end+1:newCapacity) = 0;
-                measuredSkewness(end+1:newCapacity) = 0;
-                measuredKurtosis(end+1:newCapacity) = 0;
-                measuredBowleySkewness(end+1:newCapacity) = 0;
-                shapeParams(end+1:newCapacity) = 0;
-                distributionTypes(end+1:newCapacity) = {''};
+        % Generate data for each sample in the batch
+        for i = 1:batchCount
+            sampleIdx = startIdx + i - 1;
+            
+            % Generate data based on distribution type
+            switch lower(distType)
+                case 'normal'
+                    mean_val = distParam(1);
+                    std_val = distParam(2);
+                    group2 = normrnd(mean_val, std_val, sampleSize, 1) - mean_val;
+                    
+                case 't'
+                    df = distParam;
+                    group2 = trnd(df, sampleSize, 1);
+                    
+                case 'uniform'
+                    min_val = distParam(1);
+                    max_val = distParam(2);
+                    group2 = (max_val - min_val) * rand(sampleSize, 1) + min_val;
+                    
+                case 'laplace'
+                    loc = distParam(1);
+                    scale = distParam(2);
+                    u = rand(sampleSize, 1) - 0.5;
+                    group2 = loc - scale * sign(u) .* log(1 - 2*abs(u));
+                    
+                case 'logistic'
+                    loc = distParam(1);
+                    scale = distParam(2);
+                    u = rand(sampleSize, 1);
+                    group2 = loc + scale * log(u ./ (1 - u));
+                    
+                case 'chi'
+                    df = distParam;
+                    mean_chi = df;
+                    group2 = chi2rnd(df, sampleSize, 1) - mean_chi;
+                    
+                case 'exp'
+                    rate = distParam;
+                    mean_exp = 1/rate;
+                    group2 = exprnd(mean_exp, sampleSize, 1) - mean_exp;
+                    
+                case 'gamma'
+                    shape = distParam(1);
+                    scale = distParam(2);
+                    mean_gamma = shape * scale;
+                    group2 = gamrnd(shape, scale, sampleSize, 1) - mean_gamma;
+                    
+                case 'weibull'
+                    shape = distParam;
+                    scale = 1.0;
+                    mean_weibull = scale * gamma(1 + 1/shape);
+                    group2 = wblrnd(scale, shape, sampleSize, 1) - mean_weibull;
+                    
+                case 'lognormal'
+                    sigma = distParam;
+                    mu = -sigma^2/2; % Makes E[X] = 1
+                    group2 = lognrnd(mu, sigma, sampleSize, 1) - 1;
+                    
+                case 'beta'
+                    alpha = distParam(1);
+                    beta_param = distParam(2);
+                    mean_beta = alpha / (alpha + beta_param);
+                    group2 = betarnd(alpha, beta_param, sampleSize, 1) - mean_beta;
+                    
+                case 'f'
+                    df1 = distParam(1);
+                    df2 = distParam(2);
+                    mean_f = df2 / (df2 - 2);  % Only defined for df2 > 2
+                    if df2 <= 2
+                        mean_f = 1; % Use approximation if mean is undefined
+                    end
+                    group2 = frnd(df1, df2, sampleSize, 1) - mean_f;
+                    
+                otherwise
+                    error('Unknown distribution type: %s', distType);
             end
             
-            % Increment counts
-            totalCollected = totalCollected + 1;
-            currentCountPerBin(binIdx) = currentCountPerBin(binIdx) + 1;
-            samplesAddedThisIteration = samplesAddedThisIteration + 1;
+            % Calculate skewness
+            batch_skew(i) = skewness(group2);
             
-            % Store the data
-            biasedPValues(totalCollected) = batchBiased(i);
-            unbiasedPValues(totalCollected) = batchUnbiased(i);
-            measuredMeans(totalCollected) = batchMeans(i);
-            measuredVariances(totalCollected) = batchVariances(i);
-            measuredSkewness(totalCollected) = batchSkewness(i);
-            measuredKurtosis(totalCollected) = batchKurtosis(i);
-            measuredBowleySkewness(totalCollected) = batchBowleySkewness(i);
-            shapeParams(totalCollected) = batchShapeParams(i);
-            distributionTypes{totalCollected} = batchDistTypes{i};
+            % Perform permutation test
+            batch_p(i) = permutation_test(group1, group2, nPermutations);
         end
+        
+        % Store batch results
+        p_values(startIdx:endIdx) = batch_p;
+        skew_values(startIdx:endIdx) = batch_skew;
     end
     
-    % Store progress data
-    if mod(iterations, 5) == 0 || iterations == 1
-        progressData.iterations(end+1) = iterations;
-        progressData.samplesCollected(end+1) = totalCollected;
-        progressData.binCounts(end+1,:) = currentCountPerBin';
-        progressData.elapsedTime(end+1) = toc(startTime);
+    % Sort p-values
+    p_values = sort(p_values);
+    
+    % Calculate theoretical uniform p-values
+    theoretical = (1:nSamples)' / (nSamples + 1);
+    
+    % Calculate RMSE (bias measure)
+    rmse = sqrt(mean((p_values - theoretical).^2));
+    
+    % Store results
+    allPValues{distIdx} = p_values;
+    allSkewness{distIdx} = skew_values;
+    allRMSE(distIdx) = rmse;
+end
+
+%% Calculate average skewness for each distribution
+avgSkewness = zeros(nDist, 1);
+for i = 1:nDist
+    avgSkewness(i) = mean(allSkewness{i});
+end
+
+%% Print results
+fprintf('\nResults:\n');
+fprintf('%-20s %-12s %-12s %-12s\n', 'Distribution', 'Type', 'RMSE', 'Avg Skewness');
+fprintf('%-20s %-12s %-12s %-12s\n', '-----------', '----', '----', '------------');
+
+for i = 1:nDist
+    distInfo = distributions{i};
+    if distInfo{4}
+        typeStr = 'Symmetric';
+    else
+        typeStr = 'Nonsymmetric';
     end
     
-    % Print progress report periodically
-    currentTime = toc(startTime);
-    if toc(lastPrintTime) >= 5 || iterations == maxIterations  % Every 5 seconds or final iteration
-        lastPrintTime = tic;
-        elapsedTime = toc(startTime);
-        
-        % Calculate processing speeds
-        samplesPerSec = totalCollected / elapsedTime;
-        permTestsPerSec = totalPermTests / elapsedTime;
-        
-        % Calculate progress percentage
-        progressPct = 100 * iterations / maxIterations;
-        
-        % Print detailed progress report
-        fprintf('\n--- Progress at %.1f seconds ---\n', elapsedTime);
-        fprintf('Iteration %d/%d (%.1f%%): Collected %d p-values\n', ...
-            iterations, maxIterations, progressPct, totalCollected);
-        fprintf('Processing speed: %.1f samples/sec, %.1f permutation tests/sec\n', ...
-            samplesPerSec, permTestsPerSec);
-        
-        % Print bin statistics
-        fprintf('Bin counts: ');
-        for b = 1:numBins
-            fprintf('[%.1f-%.1f]: %d | ', ...
-                skewnessBins(b), skewnessBins(b+1), currentCountPerBin(b));
-            
-            % Line break every 3 bins for readability
-            if mod(b, 3) == 0
-                fprintf('\n           ');
-            end
-        end
-        fprintf('\n');
+    fprintf('%-20s %-12s %.6f     %.3f\n', ...
+        distInfo{1}, typeStr, allRMSE(i), avgSkewness(i));
+end
+
+% Compare symmetric vs nonsymmetric
+isSymmetric = [distributions{:,4}];
+symmetric_rmse = allRMSE(isSymmetric);
+nonsymmetric_rmse = allRMSE(~isSymmetric);
+mean_symmetric_rmse = mean(symmetric_rmse);
+mean_nonsymmetric_rmse = mean(nonsymmetric_rmse);
+
+fprintf('\nSummary:\n');
+fprintf('Average RMSE for symmetric distributions:     %.6f\n', mean_symmetric_rmse);
+fprintf('Average RMSE for nonsymmetric distributions:  %.6f\n', mean_nonsymmetric_rmse);
+fprintf('Ratio (nonsymmetric/symmetric):               %.2f\n', mean_nonsymmetric_rmse/mean_symmetric_rmse);
+
+%% Create QQ plots
+% Determine optimal layout for subplots
+nRows = ceil(sqrt(nDist));
+nCols = ceil(nDist / nRows);
+
+% Create figure for QQ plots
+figure('Position', [100, 100, 1200, 800]);
+
+% Create all QQ plots
+for i = 1:nDist
+    subplot(nRows, nCols, i);
+    
+    distInfo = distributions{i};
+    distName = distInfo{1};
+    isSymmetric = distInfo{4};
+    
+    % Theoretical uniform
+    theoretical = (1:nSamples)' / (nSamples + 1);
+    
+    % Plot QQ plot
+    if isSymmetric
+        lineColor = [0.2, 0.6, 0.8]; % Blue for symmetric
+    else
+        lineColor = [0.8, 0.4, 0.2]; % Orange for nonsymmetric
     end
+    
+    % Plot points
+    plot(theoretical, allPValues{i}, '-', 'Color', lineColor, 'LineWidth', 1.5);
+    hold on;
+    
+    % Add diagonal reference line
+    plot([0, 1], [0, 1], 'k--');
+    
+    % Add RMSE and skewness text
+    if isSymmetric
+        typeStr = 'Sym';
+    else
+        typeStr = 'Nonsym';
+    end
+    text(0.1, 0.85, sprintf('%s (%.4f)', typeStr, allRMSE(i)), ...
+        'Units', 'normalized', 'FontSize', 8);
+    
+    % Format
+    title(distName, 'FontSize', 9);
+    axis square;
+    grid on;
+    
+    % Only show axis labels on outer plots
+    if i > nRows * (nCols - 1) || i == nDist
+        xlabel('Expected P-values');
+    end
+    if mod(i-1, nCols) == 0
+        ylabel('Observed P-values');
+    end
+    
+    % Set axis limits
+    xlim([0 1]);
+    ylim([0 1]);
+    
+    % Set tick marks
+    set(gca, 'XTick', 0:0.2:1);
+    set(gca, 'YTick', 0:0.2:1);
+    set(gca, 'FontSize', 8);
 end
 
-% Trim arrays to actual size
-biasedPValues = biasedPValues(1:totalCollected);
-unbiasedPValues = unbiasedPValues(1:totalCollected);
-measuredMeans = measuredMeans(1:totalCollected);
-measuredVariances = measuredVariances(1:totalCollected);
-measuredSkewness = measuredSkewness(1:totalCollected);
-measuredKurtosis = measuredKurtosis(1:totalCollected);
-measuredBowleySkewness = measuredBowleySkewness(1:totalCollected);
-shapeParams = shapeParams(1:totalCollected);
-distributionTypes = distributionTypes(1:totalCollected);
+% Add overall title
+sgtitle('P-value QQ Plots: Symmetric vs Nonsymmetric Distributions', 'FontSize', 14);
 
-% Sort both sets of p-values independently
-[biasedPValues, biasedIndices] = sort(biasedPValues);
-[unbiasedPValues, unbiasedIndices] = sort(unbiasedPValues);
-
-% At this point, you must decide which sorting to base other parameters on
-% Let's use the biased p-values' sorting as the reference
-measuredMeans = measuredMeans(biasedIndices);
-measuredVariances = measuredVariances(biasedIndices);
-measuredSkewness = measuredSkewness(biasedIndices);
-measuredKurtosis = measuredKurtosis(biasedIndices);
-measuredBowleySkewness = measuredBowleySkewness(biasedIndices);
-shapeParams = shapeParams(biasedIndices);
-distributionTypes = distributionTypes(biasedIndices);
-
-% Create the final table with the sorted p-values and corresponding parameters
-trainingData = table(biasedPValues, unbiasedPValues, ...
-                     measuredMeans, measuredVariances, ...
-                     measuredSkewness, measuredKurtosis, ...
-                     measuredBowleySkewness, ...
-                     shapeParams, distributionTypes, ...
-                     'VariableNames', {'BiasedPValue', 'UnbiasedPValue', ...
-                     'MeasuredMean', 'MeasuredVariance', ...
-                     'MeasuredSkewness', 'MeasuredKurtosis', ...
-                     'MeasuredBowleySkewness', ...
-                     'ShapeParam', 'DistributionType'});
-
-% Print final statistics
-totalTime = toc(startTime);
-fprintf('\n=============================================================\n');
-fprintf('GENERATION COMPLETE\n');
-fprintf('=============================================================\n');
-fprintf('Total iterations:        %d\n', iterations);
-fprintf('Total time:              %.2f seconds\n', totalTime);
-fprintf('Total p-values collected: %d\n', totalCollected);
-fprintf('Average p-values per iteration: %.1f\n', totalCollected/iterations);
-fprintf('Average time per iteration: %.4f seconds\n', totalTime/iterations);
-fprintf('Total permutation tests:  %d\n', totalPermTests);
-fprintf('=============================================================\n');
-
-% Display bin statistics
-fprintf('\nBin Statistics:\n');
-for i = 1:numBins
-    fprintf('Bin [%.2f - %.2f]: %d samples (%.1f%%)\n', ...
-        skewnessBins(i), skewnessBins(i+1), currentCountPerBin(i), ...
-        100*currentCountPerBin(i)/totalCollected);
+% Create legend in a separate subplot
+if nRows * nCols > nDist
+    subplot(nRows, nCols, nDist + 1);
+    
+    hold on;
+    h1 = plot(NaN, NaN, '-', 'Color', [0.2, 0.6, 0.8], 'LineWidth', 2);
+    h2 = plot(NaN, NaN, '-', 'Color', [0.8, 0.4, 0.2], 'LineWidth', 2);
+    h3 = plot(NaN, NaN, 'k--', 'LineWidth', 1.5);
+    
+    legend([h1, h2, h3], {'Symmetric', 'Nonsymmetric', 'Ideal'}, ...
+        'Location', 'SouthEast', 'FontSize', 10);
+    
+    axis off;
 end
 
-% Display distribution type statistics
-distTypes = unique(distributionTypes);
-fprintf('\nDistribution Type Statistics:\n');
-for i = 1:length(distTypes)
-    count = sum(strcmp(distributionTypes, distTypes{i}));
-    fprintf('%s: %d samples (%.1f%%)\n', distTypes{i}, count, 100*count/totalCollected);
-end
+% Save figure
+saveas(gcf, fullfile(outputPath, 'pvalue_qq_plots.png'));
+saveas(gcf, fullfile(outputPath, 'pvalue_qq_plots.fig'));
 
-% Display summary statistics
-fprintf('\nP-Value Statistics:\n');
-fprintf('Mean biased p-value:    %.4f\n', mean(biasedPValues));
-fprintf('Mean unbiased p-value:  %.4f\n', mean(unbiasedPValues));
-fprintf('Mean measured mean:     %.4f\n', mean(measuredMeans));
-fprintf('Mean measured variance: %.4f\n', mean(measuredVariances));
-fprintf('Mean measured skewness: %.4f\n', mean(measuredSkewness));
-fprintf('Mean measured kurtosis: %.4f\n', mean(measuredKurtosis));
-fprintf('Mean measured Bowley skewness: %.4f\n', mean(measuredBowleySkewness));
-fprintf('=============================================================\n');
+fprintf('\nQQ plots saved to %s\n', fullfile(outputPath, 'pvalue_qq_plots.png'));
 
-% Continue with original visualization
-%visualize_data_generation(progressData, trainingData, skewnessBins);
+%% Create combined QQ plot comparing best and worst cases
+figure('Position', [100, 500, 800, 400]);
 
-end
+% Find most biased symmetric and nonsymmetric distributions
+[~, maxSymIdx] = max(symmetric_rmse);
+[~, maxNonsymIdx] = max(nonsymmetric_rmse);
+
+% Find indices in the overall list
+symIndices = find(isSymmetric);
+nonsymIndices = find(~isSymmetric);
+worstSymIdx = symIndices(maxSymIdx);
+worstNonsymIdx = nonsymIndices(maxNonsymIdx);
+
+% Plot worst symmetric
+subplot(1, 2, 1);
+plot(theoretical, allPValues{worstSymIdx}, '-', 'Color', [0.2, 0.6, 0.8], 'LineWidth', 2);
+hold on;
+plot([0, 1], [0, 1], 'k--');
+title(['Most Biased Symmetric: ', distributions{worstSymIdx}{1}]);
+xlabel('Expected P-values');
+ylabel('Observed P-values');
+text(0.1, 0.9, sprintf('RMSE: %.4f', allRMSE(worstSymIdx)), 'Units', 'normalized');
+text(0.1, 0.85, sprintf('Skew: %.3f', avgSkewness(worstSymIdx)), 'Units', 'normalized');
+grid on;
+axis square;
+
+% Plot worst nonsymmetric
+subplot(1, 2, 2);
+plot(theoretical, allPValues{worstNonsymIdx}, '-', 'Color', [0.8, 0.4, 0.2], 'LineWidth', 2);
+hold on;
+plot([0, 1], [0, 1], 'k--');
+title(['Most Biased Nonsymmetric: ', distributions{worstNonsymIdx}{1}]);
+xlabel('Expected P-values');
+ylabel('Observed P-values');
+text(0.1, 0.9, sprintf('RMSE: %.4f', allRMSE(worstNonsymIdx)), 'Units', 'normalized');
+text(0.1, 0.85, sprintf('Skew: %.3f', avgSkewness(worstNonsymIdx)), 'Units', 'normalized');
+grid on;
+axis square;
+
+% Save figure
+saveas(gcf, fullfile(outputPath, 'worst_case_qq_plots.png'));
+
+fprintf('Analysis complete.\n');

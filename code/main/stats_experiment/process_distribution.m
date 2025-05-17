@@ -36,7 +36,6 @@ parfor p = 1:length(paramValues)
     measuredVariances = zeros(nPValuesTest, 1);
     measuredSkewness = zeros(nPValuesTest, 1);
     measuredKurtosis = zeros(nPValuesTest, 1);
-    measuredBowleySkewness = zeros(nPValuesTest, 1);
     
     % Pre-generate all uniform data for unbiased p-values
     uniformData = unifrnd(-0.5, 0.5, sampleSizeTest, nPValuesTest);
@@ -66,7 +65,6 @@ parfor p = 1:length(paramValues)
         measuredVariances(i) = moments.variance;
         measuredSkewness(i) = moments.skewness;
         measuredKurtosis(i) = moments.kurtosis;
-        measuredBowleySkewness(i) = moments.bowleySkewness;
         
         % Perform permutation tests
         biasedPVals(i) = permutation_test(group1, group2, nPermutationsTest);
@@ -83,19 +81,17 @@ parfor p = 1:length(paramValues)
     measuredVariances = measuredVariances(sortIdx);
     measuredSkewness = measuredSkewness(sortIdx);
     measuredKurtosis = measuredKurtosis(sortIdx);
-    measuredBowleySkewness = measuredBowleySkewness(sortIdx);
     
     % Prepare feature vector for prediction using all moments
     X_test = [biasedPVals, measuredMeans, measuredVariances, ...
-              measuredSkewness, measuredKurtosis, measuredBowleySkewness];
+              measuredSkewness, measuredKurtosis];
     
     X_test_poly = [X_test, ...
                   X_test(:,1).^2, X_test(:,1).^3, ... % BiasedPValue terms
                   X_test(:,2).^2, X_test(:,1).*X_test(:,2), ... % Mean terms
                   X_test(:,3).^2, X_test(:,1).*X_test(:,3), ... % Variance terms
                   X_test(:,4).^2, X_test(:,1).*X_test(:,4), ... % Skewness terms
-                  X_test(:,5).^2, X_test(:,1).*X_test(:,5), ... % Kurtosis terms
-                  X_test(:,6).^2, X_test(:,1).*X_test(:,6)]; % BowleySkewness terms
+                  X_test(:,5).^2, X_test(:,1).*X_test(:,5)]; % Kurtosis terms
     
     % Use the model to predict
     predictedPVals = predict(final_mdl_poly, X_test_poly);
@@ -113,7 +109,6 @@ parfor p = 1:length(paramValues)
     local_results.MeasuredVariance = measuredVariances;
     local_results.MeasuredSkewness = measuredSkewness;
     local_results.MeasuredKurtosis = measuredKurtosis;
-    local_results.MeasuredBowleySkewness = measuredBowleySkewness;
     local_results.Parameter = repmat(param, length(biasedPVals), 1);
     local_results.RMSE = local_RMSE;
     
@@ -138,7 +133,6 @@ results.MeasuredMean = [];
 results.MeasuredVariance = [];
 results.MeasuredSkewness = [];
 results.MeasuredKurtosis = [];
-results.MeasuredBowleySkewness = [];
 results.Parameter = [];
 results.RMSE_ByParam = zeros(length(paramValues), 1);
 
@@ -150,7 +144,6 @@ for p = 1:length(paramValues)
     results.MeasuredVariance = [results.MeasuredVariance; results_cell{p}.MeasuredVariance];
     results.MeasuredSkewness = [results.MeasuredSkewness; results_cell{p}.MeasuredSkewness];
     results.MeasuredKurtosis = [results.MeasuredKurtosis; results_cell{p}.MeasuredKurtosis];
-    results.MeasuredBowleySkewness = [results.MeasuredBowleySkewness; results_cell{p}.MeasuredBowleySkewness];
     results.Parameter = [results.Parameter; results_cell{p}.Parameter];
     results.RMSE_ByParam(p) = results_cell{p}.RMSE;
 end

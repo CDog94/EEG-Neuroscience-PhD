@@ -4,3 +4,5 @@ code/fieldtrip_analyses.asv
 code/main/stats_experiment/archive/pvalue_correction_training_data.mat
 code/main/stats_experiment/results/pvalue_correction_poly_model.mat
 code/main/stats_experiment/results/pvalue_correction_full_data.mat
+code/main/stats_experiment/results/pvalue_correction_poly_model_mixed.mat
+code/main/stats_experiment/results/pvalue_correction_full_data_mixed.mat

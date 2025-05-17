@@ -74,7 +74,7 @@ set(boxplotHandle, 'LineWidth', 1.2);
 set(gca, 'XTickLabelRotation', 45); % Rotate x-axis labels for better readability
 
 % Improve text formatting
-title('Measured Bowley''s Skewness Across Distributions', 'FontSize', titleSize, 'FontName', fontName, 'FontWeight', 'bold');
+title('Measured Skewness Across Distributions', 'FontSize', titleSize, 'FontName', fontName, 'FontWeight', 'bold');
 ylabel('Skewness', 'FontSize', fontSize, 'FontName', fontName, 'FontWeight', 'bold');
 set(gca, 'FontSize', fontSize-1, 'FontName', fontName, 'XGrid', 'on', 'YGrid', 'on', 'Box', 'on');
 
@@ -102,12 +102,8 @@ for j = 1:length(h_outliers)
     uistack(h_outliers(j), 'top');
 end
 
-% Remove legend (as requested)
-% leg1 = legend({'Log-normal', 'Weibull', 'Chi-Squared'}, 'Location', 'NorthEast');
-% set(leg1, 'FontSize', fontSize-1, 'Box', 'off', 'Position', [0.85, 0.92, 0.1, 0.05]);
-
-% Fix ylim to better show outliers
-ylim([-0.6, 0.8]);
+% Fix ylim to better show outliers - adjust for MATLAB skewness range
+ylim([-2, 6]);
 
 % Row 2: Scatter plot of predicted vs. true p-values for all distributions
 ax2 = subplot(4, 1, 2);
@@ -120,7 +116,6 @@ s3 = scatter(lognormalResults.UnbiasedPValues, lognormalResults.PredictedPValues
 p1 = plot([0, 1], [0, 1], 'k--', 'LineWidth', 2);
 
 % Improve text formatting
-% Removed title as requested
 xlabel('True P-Value', 'FontSize', fontSize, 'FontName', fontName, 'FontWeight', 'bold');
 ylabel('Predicted P-Value', 'FontSize', fontSize, 'FontName', fontName, 'FontWeight', 'bold');
 set(gca, 'FontSize', fontSize-1, 'FontName', fontName, 'XGrid', 'on', 'YGrid', 'on', 'Box', 'on');
@@ -219,7 +214,6 @@ text(worstLogNIdx, worstLogNRMSE + 0.01, ...
     'HorizontalAlignment', 'center', 'FontWeight', 'bold', 'FontSize', fontSize-2);
 
 % Improve text formatting
-% Removed title as requested
 ylabel('RMSE', 'FontSize', fontSize, 'FontName', fontName, 'FontWeight', 'bold');
 set(gca, 'FontSize', fontSize-1, 'FontName', fontName, 'XGrid', 'on', 'YGrid', 'on', 'Box', 'on');
 
@@ -232,15 +226,6 @@ for i = 1:maxBars
     xLabels{i} = sprintf('Set %d', i);
 end
 set(gca, 'XTickLabel', xLabels);
-
-% Remove parameter info text (as requested)
-% paramText = sprintf('Chi-Squared (df): [%s]\nWeibull (shape): [%s]\nLog-normal (sigma): [%s]', ...
-%     regexprep(mat2str(chiSquaredDfValues), '\s+', ' '), ...
-%     regexprep(mat2str(weibullShapeValues), '\s+', ' '), ...
-%     regexprep(mat2str(lognormalSigmaValues), '\s+', ' '));
-% 
-% text(0.5, -0.25, paramText, 'Units', 'normalized', ...
-%     'HorizontalAlignment', 'center', 'FontName', fontName, 'FontSize', fontSize-2);
 
 % NEW ROW 4: Add worst-performing distribution shapes
 % Create 3-panel subplot for the worst performers
@@ -304,9 +289,6 @@ xlim([-2, 8]);
 % Set appropriate ylim based on the peak
 ylim([0, max(y_raw)*1.2]);
 set(gca, 'FontSize', fontSize-2, 'FontName', fontName);
-
-% Remove the annotation title for the bottom row completely
-% No title needed since each subplot has its own title
 
 % Adjust the spacing between subplots
 drawnow;

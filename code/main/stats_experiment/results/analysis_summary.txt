@@ -1,0 +1,17 @@
+Permutation Test Analysis Summary
+================================
+Date: 2025-04-27 18:08:35
+Total execution time: 0.02 hours
+Sample size per group: 100
+Number of permutations: 1000
+Number of samples: 10000
+Total permutation tests: 60.00 million
+Tests per second: 685956.78
+
+Distributions analyzed:
+  Normal (Symmetric): 1.45 minutes
+  Laplace (Symmetric): 1.43 minutes
+  Student_t_3 (Symmetric): 1.45 minutes
+  Gamma_0.5_1 (Nonsymmetric): 1.46 minutes
+  Exponential (Nonsymmetric): 1.44 minutes
+  LogNormal (Nonsymmetric): 1.45 minutes
