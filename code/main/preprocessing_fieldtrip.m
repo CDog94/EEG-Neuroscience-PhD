@@ -3,19 +3,17 @@
 
 clear all;
 restoredefaultpath;
-addpath('/Users/cihandogan/Documents/Research/fieldtrip-20240214');
-addpath('/Users/cihandogan/Documents/Research/spm12')
+addpath('C:\Users\CDoga\Documents\Research\fieldtrip-20240214');
+addpath('C:\Users\CDoga\Documents\Research\spm25')
 ft_defaults;
-cd("/Users/cihandogan/Documents/Research/preprocessing/after_spm_script");
+cd("C:\Users\CDoga\Documents\Research\preprocessing\after_spm_script");
     
 
 %% Change these variables depending on what you would like to do.
-main_path = '/Users/cihandogan/Documents/Research/preprocessing/after_spm_script/participant_';
-
-%main_path = '/Users/cihandogan/Documents/Research/PhD/participant_';
+main_path = 'C:\Users\CDoga\Documents\Research\PhD\participant_';
 
 to_preprocess = {'mean_intercept'};
-type_of_analysis = 'frequency_domain'; % or time_domain
+type_of_analysis = 'time_domain'; % or time_domain
 
 onsets = [
     2,3,4,5,6,7,8
@@ -40,7 +38,7 @@ for k=1:numel(to_preprocess)
     [n_onsets, ~] = size(onsets);
     for i=1:n_onsets
         subset_onsets = onsets(i,:);
-        for participant = 12:12  %36:n_participants
+        for participant = 1:40  %36:n_participants
 
             %% gets the onsets of interest
             [thin, med, thick, description] = get_onsets(subset_onsets, analysis_type);
@@ -52,7 +50,7 @@ for k=1:numel(to_preprocess)
             participant_main_path = strcat(main_path, int2str(participant));    
 
             if exist(participant_main_path, 'dir')
-                participant_main_path = strcat(participant_main_path, '/');
+                participant_main_path = strcat(participant_main_path, '\');
                 data_structure = 'spmeeg_P';        
 
                 if participant < 10
@@ -72,7 +70,6 @@ for k=1:numel(to_preprocess)
                     data_structure = strcat(data_structure, '_075_80Hz.mat');  
                     %data_fname = strcat(data_structure, '-Deci_ready_for_ft.dat');
                     %data_structure = strcat(data_structure, '-Deci_ready_for_ft.mat');  
-
                     filter_freq = [0.3, 30];
                     baseline_window = [-0.2 0];
                 end
@@ -147,8 +144,8 @@ for k=1:numel(to_preprocess)
                 
                 % saves the grand average data (easier to load rather than
                 % trial level. Also saves trial level if needed.
-                save_data(grand_averages, participant_main_path, full_description, '_grand-average')
-                save_data(trial_level, participant_main_path, full_description, '_trial-level')
+                save_data(grand_averages, participant_main_path, full_description, '_grand-average', type_of_analysis)
+                save_data(trial_level, participant_main_path, full_description, '_trial-level', type_of_analysis)
 
                 disp(strcat('PROCESSED PARTICIPANT..',int2str(participant))); 
             end
@@ -414,8 +411,14 @@ function postprocessed = remove_electrodes(postprocessed, type)
 end
 
 %% save the grand average data
-function save_data(data, participant_main_path, description, data_type)
-    path = strcat(participant_main_path, description, data_type, '.mat');
+function save_data(data, participant_main_path, description, data_type, type_of_analysis)
+    main_dir = strcat(participant_main_path, type_of_analysis);
+    
+    if not(exist(main_dir, 'dir'))
+        mkdir(main_dir);
+    end
+
+    path = strcat(main_dir, '\',  description, data_type, '.mat');
     save(path, 'data');
 end
 

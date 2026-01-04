@@ -1,10 +1,10 @@
 %% PATHS AND SETTING UP FIELDTRIP AND PATHS
 clear classes;
 clear all;
-master_dir = '/Users/cihandogan/Documents/Research/PhD/fieldtrip';
-main_path = '/Users/cihandogan/Documents/Research/preprocessing/after_spm_script/participant_';
-results_dir = '/Users/cihandogan/Documents/Research/preprocessing/results';
-addpath('/Users/cihandogan/Documents/Research/fieldtrip-20240214');
+master_dir = 'C:\Users\CDoga\Documents\Research\PhD\fieldtrip';
+main_path = 'C:\Users\CDoga\Documents\Research\PhD\participant_';
+results_dir = 'C:\Users\CDoga\Documents\Research\PhD\results';
+addpath('C:\Users\CDoga\Documents\Research\fieldtrip-20240214');
 
 ft_defaults;
 cd(master_dir);
@@ -13,44 +13,43 @@ cd(master_dir);
 experiment_types = {'onsets-2-8-explicit'};
 desired_design_mtxs = {"no-factor"};
 type_of_interaction = 'habituation';
-start_latency = 0.0;
-end_latency = 0.8;
+start_latency = 0.056;
+end_latency = 0.256;
 
 %% SHALL WE APPLY A ROI, IF SO HOW?
-region_of_interest = 0;
+region_of_interest =0 ;
 roi_applied = 'two-tailed';
 weight_roi = 0;
 roi_to_apply = 0;
 
 %% GENERATE ERPS AND COMPUTE CONFIDENCE INTERVALS
-create_topographic_maps = 1;
+create_topographic_maps =1;
 generate_erps = 1;
 weight_erps = 0; % weights based on quartiles
 weighting_factor = 0.75; % weights based on quartiles
 
 %% CHOOSE THE TYPE OF ANALYSIS EITHER 'frequency_domain' or 'time_domain'
-type_of_analysis = 'frequency_domain';
+type_of_analysis = 'time_domain';
 
-if strcmp(type_of_analysis, 'frequency_domain')
+if strcmp(type_of_analysis, 'frequency_domain') || strcmp(type_of_analysis, 'frequency_domain_p1')
     disp('RUNNING A FREQUENCY-DOMAIN ANALYSIS');
     run_mua = 1; % run a MUA in the frequnecy domain?
     analyse_spectrogram = 1 ; % analysis on the aggregate power data?
     frequency_level = 'trial-level'; % freq analyses on 'participant-level' or 'trial-level'
     extract_timeseries_values = 0;
-    toi = [0.0, 0.8];
-    foi_of_interest = [[8, 13]; [20,30]; [30,45]; [45, 60]; [60, 80]];
-    foi_of_interest = [[60, 80]];
-    % 8-13Hz Alpha, 20-35Hz Beta, 30-45Hz, Low Gamma, 45-60Hz, Mid Gamma
-    % 60-80Hz High Gamma
-    analysis = 'preprocess'; % 'load' or 'preprocess'
+    toi = [0.5, 3.05];
+    foi_of_interest = [[10, 15]; [20, 30]; [30,45]; [45, 60]; [60, 80]];
+    %foi_of_interest = [[45, 60]; [60, 80]];
+    analysis = 'load'; % 'load' or 'preprocess'
 elseif strcmp(type_of_analysis, 'time_domain') || strcmp(type_of_analysis, 'time_domain_p1')
     disp('RUNNING A TIME-DOMAIN ANALYSIS');
     foi_of_interest = [[-999, -999]];
     toi = [0.056, 0.256];
 end
 
+
 %% OFF TO THE RACES WE GO
-for f = 1:numel(foi_of_interest)
+ for f = 1:numel(foi_of_interest)
     foi = foi_of_interest(f,:);
     for exp_type = 1:numel(experiment_types)
         for j = 1:numel(desired_design_mtxs)
@@ -79,8 +78,6 @@ for f = 1:numel(foi_of_interest)
                 save_path = strcat(results_dir, '/', type_of_analysis, '/ ', time_name,'/','factor-effect', '/', desired_design_mtx);
             elseif strcmp(experiment_types, 'three-way-interaction')
                 save_path = strcat(results_dir, '/', type_of_analysis, '/', time_name,'/','three-way-interaction', '/', desired_design_mtx);
-            elseif strcmp(experiment_types, 'trial-level-2-8')
-                save_path = strcat(results_dir, '/', tpye_of_analysis, '/', time_name,'/','trial_level');
             end
 
             % check if its a frequency experiment
@@ -88,6 +85,11 @@ for f = 1:numel(foi_of_interest)
                 start_freq = int2str(foi(1));
                 end_freq = int2str(foi(2));
                 save_path = save_path + "_" + start_freq + "_" + end_freq;
+
+                if region_of_interest == 1
+                    roi = "C:\Users\CDoga\Documents\Research\PhD\fieldtrip\roi\" + "roi_" + "freq_" +  int2str(foi(1)) + "_" + int2str(foi(2));
+                    load(roi)
+                end
             end
 
             % check if the folder exists, else make it
@@ -118,7 +120,7 @@ for f = 1:numel(foi_of_interest)
                     partition.partition_number = 0;
 
                     [data, participant_order_1] = load_postprocessed_data(main_path, n_participants, ...
-                        data_file, partition);
+                        data_file, partition, type_of_analysis);
                     n_part = numel(data);
                     %[design_matrix, data] =  create_design_matrix_partitions(participant_order_1, data, ...
                     %            regression_type, 0, type_of_effect);
@@ -145,7 +147,7 @@ for f = 1:numel(foi_of_interest)
 
 
                     [data, participant_order_1] = load_postprocessed_data(main_path, n_participants, ...
-                        data_file, partition);
+                        data_file, partition, type_of_analysis);
                     n_part = numel(data);
 
                     [design_matrix, data] =  create_design_matrix_partitions(participant_order_1, data, ...
@@ -156,7 +158,7 @@ for f = 1:numel(foi_of_interest)
                             if strcmp(roi_applied, 'one-tailed')
                                 load('E:/PhD/fieldtrip/roi/one_tailed_roi_28.mat');
                             elseif strcmp(roi_applied, 'two-tailed')
-                                load('E:/PhD/fieldtrip/roi/two_tailed_roi_28.mat');
+                               load('C:\Users\CDoga\Documents\Research\PhD\fieldtrip\roi\two_tailed_roi_28.mat');
                             end
                         end
                         data = create_hacked_roi(data, roi, weight_roi);
@@ -215,14 +217,13 @@ for f = 1:numel(foi_of_interest)
                     if strcmp(type_of_analysis,'time_domain')
                         data_file = 'time_domain_partitions_partitioned_onsets_2_3_4_5_6_7_8_grand-average.mat';
 
-                        if f == 1
-                            [data1, participant_order_1] = load_postprocessed_data(main_path, n_participants, ...
-                                data_file, partition1);
-                            [data2, participant_order_2] = load_postprocessed_data(main_path, n_participants, ...
-                                data_file, partition2);
-                            [data3, participant_order_3] = load_postprocessed_data(main_path, n_participants, ...
-                                data_file, partition3);
-                        end
+
+                        [data1, participant_order_1] = load_postprocessed_data(main_path, n_participants, ...
+                            data_file, partition1, type_of_analysis);
+                        [data2, participant_order_2] = load_postprocessed_data(main_path, n_participants, ...
+                            data_file, partition2, type_of_analysis);
+                        [data3, participant_order_3] = load_postprocessed_data(main_path, n_participants, ...
+                            data_file, partition3, type_of_analysis);
 
                         partition = 1;
                         [design1, new_participants1] = create_design_matrix_partitions(participant_order_1, data1, ...
@@ -255,7 +256,7 @@ for f = 1:numel(foi_of_interest)
                                 if strcmp(roi_applied, 'one-tailed')
                                     load('E:/PhD/fieldtrip/roi/one_tailed_roi_28.mat');
                                 elseif strcmp(roi_applied, 'two-tailed')
-                                    load('E:/PhD/fieldtrip/roi/two_tailed_roi_28.mat');
+                                    load('C:\Users\CDoga\Documents\Research\PhD\fieldtrip\roi\two_tailed_roi_28.mat');
                                 end
                             end
                             data = create_hacked_roi(data, roi, weight_roi);
@@ -268,7 +269,7 @@ for f = 1:numel(foi_of_interest)
                         partition1.is_partition = 1; % partition 1
                         partition1.partition_number = 1;
                         [data1, participant_order_1] = load_postprocessed_data(main_path, n_participants, ...
-                            data_file, partition1);
+                            data_file, partition1, type_of_analysis);
                         partition = 1;
                         [design1, new_participants1] = create_design_matrix_partitions(participant_order_1, data1, regression_type, partition, type_of_interaction);
                         design_matrix = design1;
@@ -291,7 +292,7 @@ for f = 1:numel(foi_of_interest)
                                 if strcmp(roi_applied, 'one-tailed')
                                     load('E:/PhD/fieldtrip/roi/one_tailed_roi_28.mat');
                                 elseif strcmp(roi_applied, 'two-tailed')
-                                    load('E:/PhD/fieldtrip/roi/two_tailed_roi_28.mat');
+                                    load('C:\Users\CDoga\Documents\Research\PhD\fieldtrip\roi\two_tailed_roi_28.mat');
                                 end
                             end
                             data = create_hacked_roi(data, roi, weight_roi);
@@ -314,11 +315,11 @@ for f = 1:numel(foi_of_interest)
                     regression_type = desired_design_mtx;
 
                     [data1, participant_order_1] = load_postprocessed_data(main_path, n_participants, ...
-                        data_file23, partitions);
+                        data_file23, partitions, type_of_analysis);
                     [data2, participant_order_2] = load_postprocessed_data(main_path, n_participants, ...
-                        data_file45, partitions);
+                        data_file45, partitions, type_of_analysis);
                     [data3, participant_order_3] = load_postprocessed_data(main_path, n_participants, ...
-                        data_file67, partitions);
+                        data_file67, partitions, type_of_analysis);
 
 
                     partition = 1;
@@ -363,7 +364,7 @@ for f = 1:numel(foi_of_interest)
                             if strcmp(roi_applied, 'one-tailed')
                                 load('E:/PhD/fieldtrip/roi/one_tailed_roi_28.mat');
                             elseif strcmp(roi_applied, 'two-tailed')
-                                load('E:/PhD/fieldtrip/roi/two_tailed_roi_28.mat');
+                                load('C:\Users\CDoga\Documents\Research\PhD\fieldtrip\roi\two_tailed_roi_28.mat');
                             end
                         end
                         data = create_hacked_roi(data, roi, weight_roi);
@@ -389,11 +390,11 @@ for f = 1:numel(foi_of_interest)
                     type_of_effect = type_of_interaction;
 
                     [p1_23, po_p1_23] = load_postprocessed_data(main_path, n_participants, ...
-                        onsets_2_3, partition1);
+                        onsets_2_3, partition1, type_of_analysis);
                     [p2_23, po_p2_23] = load_postprocessed_data(main_path, n_participants, ...
-                        onsets_2_3, partition2);
+                        onsets_2_3, partition2, type_of_analysis);
                     [p3_23, po_p3_23] = load_postprocessed_data(main_path, n_participants, ...
-                        onsets_2_3, partition3);
+                        onsets_2_3, partition3, type_of_analysis);
 
 
                     partition = 1;
@@ -411,11 +412,11 @@ for f = 1:numel(foi_of_interest)
                     design_p3_23 = design_p3_23 * 0;
 
                     [p1_45, po_p1_45] = load_postprocessed_data(main_path, n_participants, ...
-                        onsets_4_5, partition1);
+                        onsets_4_5, partition1, type_of_analysis);
                     [p2_45, po_p2_45] = load_postprocessed_data(main_path, n_participants, ...
-                        onsets_4_5, partition2);
+                        onsets_4_5, partition2, type_of_analysis);
                     [p3_45, po_p3_45] = load_postprocessed_data(main_path, n_participants, ...
-                        onsets_4_5, partition3);
+                        onsets_4_5, partition3, type_of_analysis);
 
                     partition = 1;
                     [design_p1_45, p1_45] = create_design_matrix_partitions(po_p1_45, p1_45, ...
@@ -433,11 +434,11 @@ for f = 1:numel(foi_of_interest)
 
 
                     [p1_67, po_p1_67] = load_postprocessed_data(main_path, n_participants, ...
-                        onsets_2_3, partition1);
+                        onsets_6_7, partition1, type_of_analysis);
                     [p2_67, po_p2_67] = load_postprocessed_data(main_path, n_participants, ...
-                        onsets_2_3, partition2);
+                        onsets_6_7, partition2, type_of_analysis);
                     [p3_67, po_p3_67] = load_postprocessed_data(main_path, n_participants, ...
-                        onsets_2_3, partition3);
+                        onsets_6_7, partition3, type_of_analysis);
 
                     partition = 1;
                     [design_p1_67, p1_67] = create_design_matrix_partitions(po_p1_67, p1_67, ...
@@ -478,7 +479,7 @@ for f = 1:numel(foi_of_interest)
                     xline(numel(design_p1_23)*3, '--r', {'Partition 3'}, 'LineWidth', 3.5, 'LabelHorizontalAlignment', 'left')
 
                     legend({'Onsets 2,3', 'Onsets 4,5', 'Onsets 6,7'},'Location','northwest')
-                    xlabel('Participants');
+                    xlabel('Participants'); 
                     ylabel('Value in Regressor');
 
                     if strcmp(desired_design_mtx, 'visual_stress')
@@ -510,7 +511,7 @@ for f = 1:numel(foi_of_interest)
                             if strcmp(roi_applied, 'one-tailed')
                                 load('E:/PhD/fieldtrip/roi/one_tailed_roi_28.mat');
                             elseif strcmp(roi_applied, 'two-tailed')
-                                load('E:/PhD/fieldtrip/roi/two_tailed_roi_28.mat');
+                               load('C:\Users\CDoga\Documents\Research\PhD\fieldtrip\roi\two_tailed_roi_28.mat');
                             end
                         end
                         data = create_hacked_roi(data, roi, weight_roi);
@@ -523,6 +524,26 @@ for f = 1:numel(foi_of_interest)
 
 
             elseif contains(type_of_analysis, 'frequency_domain')
+                if strcmp(experiment_type, 'erps-23-45-67') && strcmp(type_of_analysis, 'frequency_domain_p1') 
+                    n_participants = 40;
+                    regression_type = desired_design_mtx;
+                    regressor = 'ft_statfun_indepsamplesregrT';
+                    partitions.is_partition = 1;
+                    partitions.partition_number = 1;
+                    type_of_effect = type_of_interaction;
+    
+                        if strcmp(analysis, 'load')
+                            data_file23 = 'frequency_domain_mean_intercept_onsets_2_3_grand-average.mat';
+                            data_file45 = 'frequency_domain_mean_intercept_onsets_4_5_grand-average.mat';
+                            data_file67 = 'frequency_domain_mean_intercept_onsets_6_7_grand-average.mat';
+                        elseif strcmp(analysis, 'preprocess')
+                            data_file23 = 'frequency_domain_mean_intercept_onsets_2_3_trial-level.mat';
+                            data_file45 = 'frequency_domain_mean_intercept_onsets_4_5_trial-level.mat';
+                            data_file67 = 'frequency_domain_mean_intercept_onsets_6_7_trial-level.mat';
+                        end
+                    
+
+                    end 
                 if strcmp(experiment_type, 'erps-23-45-67')
                     n_participants = 40;
                     regression_type = desired_design_mtx;
@@ -541,26 +562,30 @@ for f = 1:numel(foi_of_interest)
                         data_file67 = 'frequency_domain_mean_intercept_onsets_6_7_trial-level.mat';
                     end
 
-                    if f == 1
-                        [data1, participant_order1] = load_postprocessed_data(main_path, n_participants, ...
-                            data_file23, partitions);
-                        [data2, participant_order2] = load_postprocessed_data(main_path, n_participants, ...
-                            data_file45, partitions);
-                        [data3, participant_order3] = load_postprocessed_data(main_path, n_participants, ...
-                            data_file67, partitions);
+                    [data1, participant_order1] = load_postprocessed_data(main_path, n_participants, ...
+                        data_file23, partitions, type_of_analysis);
+                   [data2, participant_order2] = load_postprocessed_data(main_path, n_participants, ...
+                        data_file45, partitions, type_of_analysis);
+                    [data3, participant_order3] = load_postprocessed_data(main_path, n_participants, ...
+                        data_file67, partitions, type_of_analysis);
 
+                    partition.is_partition = 0;
+                    partition.partition_number = 0;
 
-                        p1_freq = to_frequency_data(data1, main_path, 1, ...
-                            participant_order1, analysis, frequency_level, foi, ...
-                            'erp23_');
+                    p1_freq = to_frequency_data(main_path, partition, ...
+                        analysis, frequency_level, foi, ...
+                        'erp23_', data_file23, n_participants, toi);
 
-                        p2_freq = to_frequency_data(data2, main_path, 2, ...
-                            participant_order2, analysis, frequency_level, foi, ...
-                            'erp45_');
+                    p2_freq = to_frequency_data(main_path, partition, ...
+                        analysis, frequency_level, foi, ...
+                        'erp45_', data_file45, n_participants, toi);
 
-                        p3_freq = to_frequency_data(data3, main_path, 3, ...
-                            participant_order3, analysis, frequency_level, foi, ...
-                            'erp67_');
+                    p3_freq = to_frequency_data(main_path, partition, ...
+                        analysis, frequency_level, foi, ...
+                        'erp67_', data_file67, n_participants, toi);
+                    
+                    if strcmp(analysis, 'preprocess')
+                        continue;
                     end
 
                     [design1, new_participants1] = create_design_matrix_partitions(participant_order1, p1_freq, ...
@@ -581,7 +606,6 @@ for f = 1:numel(foi_of_interest)
                     end
 
                     if region_of_interest == 1
-                        load('E:/PhD/fieldtrip/roi/two_tailed_roi_28.mat');
                         all_data = create_hacked_roi_freq(all_data, roi);
                     end
 
@@ -597,7 +621,8 @@ for f = 1:numel(foi_of_interest)
                     design_matrix = design_matrix - mean(design_matrix);
                     all_designs{1} = design_matrix;
 
-                    save_desgin_matrix(design_matrix, n_part_per_desgin, save_path, type_of_interaction)
+                   
+                    save_desgin_matrix(design_matrix, 30, save_path, type_of_interaction)
 
                 elseif strcmp(experiment_type, 'factor_effect')
                     n_participants = 40;
@@ -614,14 +639,13 @@ for f = 1:numel(foi_of_interest)
                     partition.is_partition = 0;
                     partition.partition_number = 0;
 
-                    if f == 1
-                        [data, participant_order_1] = load_postprocessed_data(main_path, n_participants, ...
-                            data_file, partition);
+                    [data, participant_order_1] = load_postprocessed_data(main_path, n_participants, ...
+                       data_file, partition, type_of_analysis);
 
-                        freq = to_frequency_data(data, main_path, 1, ...
-                            participant_order_1, analysis, frequency_level, foi, 'mean_intercept');
-                        n_part = numel(data);
-                    end
+                         freq = to_frequency_data(main_path, partition, ...
+                        analysis, frequency_level, foi, ...
+                        'mean_intercept', data_file, n_participants, toi);
+                    n_part = numel(data);
 
                     [design1, new_participants1] = create_design_matrix_partitions(participant_order_1, freq, ...
                         regression_type, 1, type_of_effect);
@@ -658,30 +682,31 @@ for f = 1:numel(foi_of_interest)
                         data_file = 'frequency_domain_partitions_partitioned_onsets_2_3_4_5_6_7_8_trial-level.mat';
                     end
 
-                    if f == 1
-                        [data1, participant_order1] = load_postprocessed_data(main_path, n_participants, ...
-                            data_file, partition1);
-                        [data2, participant_order2] = load_postprocessed_data(main_path, n_participants, ...
-                            data_file, partition2);
-                        [data3, participant_order3] = load_postprocessed_data(main_path, n_participants, ...
-                            data_file, partition3);
+                  [data1, participant_order1] = load_postprocessed_data(main_path, n_participants, ...
+                       data_file, partition1, type_of_analysis);
+                   [data2, participant_order2] = load_postprocessed_data(main_path, n_participants, ...
+                        data_file, partition2, type_of_analysis);
+                   [data3, participant_order3] = load_postprocessed_data(main_path, n_participants, ...
+                        data_file, partition3, type_of_analysis);
 
 
-                        disp('--processing-- Hz')
-                        disp(foi)
+                    disp('--processing-- Hz')
+                    disp(foi)
 
+                    p1_freq = to_frequency_data(main_path, partition1, ...
+                        analysis, frequency_level, foi, ...
+                        'partition_', data_file, n_participants, toi);
 
-                        p1_freq = to_frequency_data(data1, main_path, 1, ...
-                            participant_order1, analysis, frequency_level, foi, ...
-                            'partition_');
+                    p2_freq = to_frequency_data(main_path, partition2, ...
+                     analysis, frequency_level, foi, ...
+                         'partition_', data_file, n_participants, toi);
 
-                        p2_freq = to_frequency_data(data2, main_path, 2, ...
-                            participant_order2, analysis, frequency_level, foi, ...
-                            'partition_');
+                    p3_freq = to_frequency_data(main_path, partition3, ...
+                        analysis, frequency_level, foi, ...
+                        'partition_', data_file, n_participants, toi);
 
-                        p3_freq = to_frequency_data(data3, main_path, 3, ...
-                            participant_order3, analysis, frequency_level, foi, ...
-                            'partition_');
+                    if strcmp(analysis, 'preprocess')
+                        continue;
                     end
 
                     [design1, new_participants1] = create_design_matrix_partitions(participant_order1, p1_freq, ...
@@ -699,10 +724,9 @@ for f = 1:numel(foi_of_interest)
                         all_data{1}{i} = participant{1}.pgi;
                     end
 
-                    %if region_of_interest == 1
-                    %    load('D:/PhD/fieldtrip/roi/two_tailed_roi_28.mat');
-                    %    all_data = create_hacked_roi_freq(all_data, roi);
-                    %end
+                    if region_of_interest == 1
+                        all_data = create_hacked_roi_freq(all_data, roi);
+                    end
 
                     n_part_per_desgin = numel(design1);
 
@@ -736,34 +760,37 @@ for f = 1:numel(foi_of_interest)
                     partition.is_partition = 0;
                     partition.partition_number = 0;
 
-                    if f == 1
-                        disp('--processing-- Hz')
-                        disp(foi);
+                    disp('--processing-- Hz')
+                    disp(foi);
+                    
+                    freq = to_frequency_data(main_path, partition, ...
+                        analysis, frequency_level, foi, ...
+                        'mean_intercept', data_file, n_participants, toi);
 
-                        freq = to_frequency_data(main_path, partition, ...
-                            analysis, frequency_level, foi, ...
-                            'mean_intercept', data_file, n_participants);
-                        n_part = numel(freq);
-
-                        null_data = set_values_to_zero_freq(freq);
-
-                        if strcmp(desired_design_mtx, 'aggregated_average')
-                            create_agg_average(freq);
-                            return;
-                        end
-                        
-                        
-                        for i = 1:numel(freq)
-                            participant = freq(i);
-                            freq{i} = participant{1}.pgi;
-
-                            participant = null_data(i);
-                            null_data{i} = participant{1}.pgi;
-                        end
-
-                        all_data{1} = freq;
-                        all_designs{1} = [1:n_part 1:n_part; ones(1,n_part) 2*ones(1,n_part)];
+                    if strcmp(analysis, 'preprocess')
+                        continue;
                     end
+
+                    n_part = numel(freq);
+
+                    null_data = set_values_to_zero_freq(freq);
+
+                    if strcmp(desired_design_mtx, 'aggregated_average')
+                        create_agg_average(freq);
+                        return;
+                    end
+                        
+                    for i = 1:numel(freq)
+                        participant = freq(i);
+                        freq{i} = participant{1}.pgi;
+
+                        participant = null_data(i);
+                        null_data{i} = participant{1}.pgi;
+                    end
+
+                    all_data{1} = freq;
+                    all_designs{1} = [1:n_part 1:n_part; ones(1,n_part) 2*ones(1,n_part)];
+                
                 elseif strcmp(experiment_type, 'three-way-interaction')
                     n_participants = 40;
                     partition1.is_partition = 1;
@@ -786,107 +813,104 @@ for f = 1:numel(foi_of_interest)
                         onsets_6_7 = 'frequency_domain_partitions_partitioned_onsets_6_7_trial-level.mat';
                     end
 
-                    if f == 1
-
                         % onsets 2,3 for p1,p2,p3
 
-                        [p1_23, po_p1_23] = load_postprocessed_data(main_path, n_participants, ...
-                            onsets_2_3, partition1);
-                        [p2_23, po_p2_23] = load_postprocessed_data(main_path, n_participants, ...
-                            onsets_2_3, partition2);
-                        [p3_23, po_p3_23] = load_postprocessed_data(main_path, n_participants, ...
-                            onsets_2_3, partition3);
+                    [p1_23, po_p1_23] = load_postprocessed_data(main_path, n_participants, ...
+                        onsets_2_3, partition1, type_of_analysis);
+                    [p2_23, po_p2_23] = load_postprocessed_data(main_path, n_participants, ...
+                        onsets_2_3, partition2, type_of_analysis);
+                    [p3_23, po_p3_23] = load_postprocessed_data(main_path, n_participants, ...
+                        onsets_2_3, partition3, type_of_analysis);
 
-                        p1_23 = to_frequency_data(p1_23, main_path, 1, ...
-                            po_p1_23, analysis, frequency_level, foi, ...
-                            'p123_');
+                    p1_23 = to_frequency_data(p1_23, main_path, 1, ...
+                        po_p1_23, analysis, frequency_level, foi, ...
+                        'p123_', toi);
 
-                        p2_23 = to_frequency_data(p2_23, main_path, 2, ...
-                            po_p2_23, analysis, frequency_level, foi, ...
-                            'p223_');
+                    p2_23 = to_frequency_data(p2_23, main_path, 2, ...
+                        po_p2_23, analysis, frequency_level, foi, ...
+                        'p223_', toi);
 
-                        p3_23 = to_frequency_data(p3_23, main_path, 3, ...
-                            po_p3_23, analysis, frequency_level, foi, ...
-                            'p323_');
+                    p3_23 = to_frequency_data(p3_23, main_path, 3, ...
+                        po_p3_23, analysis, frequency_level, foi, ...
+                        'p323_', toi);
 
-                        partition = 1;
-                        [design_p1_23, p1_23] = create_design_matrix_partitions(po_p1_23, p1_23, ...
-                            regression_type, partition, type_of_effect);
-                        partition = 2;
-                        [design_p2_23, p2_23] = create_design_matrix_partitions(po_p2_23, p2_23, ...
-                            regression_type, partition, type_of_effect);
-                        partition = 3;
-                        [design_p3_23, p3_23] = create_design_matrix_partitions(po_p3_23, p3_23, ...
-                            regression_type, partition, type_of_effect);
+                    partition = 1;
+                    [design_p1_23, p1_23] = create_design_matrix_partitions(po_p1_23, p1_23, ...
+                        regression_type, partition, type_of_effect);
+                    partition = 2;
+                    [design_p2_23, p2_23] = create_design_matrix_partitions(po_p2_23, p2_23, ...
+                        regression_type, partition, type_of_effect);
+                    partition = 3;
+                    [design_p3_23, p3_23] = create_design_matrix_partitions(po_p3_23, p3_23, ...
+                        regression_type, partition, type_of_effect);
 
-                        design_p1_23 = design_p1_23 * 0;
-                        design_p2_23 = design_p2_23 * 0;
-                        design_p3_23 = design_p3_23 * 0;
+                    design_p1_23 = design_p1_23 * 0;
+                    design_p2_23 = design_p2_23 * 0;
+                    design_p3_23 = design_p3_23 * 0;
 
-                        % onsets 4,5 for p1,p2,p3
-                        [p1_45, po_p1_45] = load_postprocessed_data(main_path, n_participants, ...
-                            onsets_4_5, partition1);
-                        [p2_45, po_p2_45] = load_postprocessed_data(main_path, n_participants, ...
-                            onsets_4_5, partition2);
-                        [p3_45, po_p3_45] = load_postprocessed_data(main_path, n_participants, ...
-                            onsets_4_5, partition3);
+                    % onsets 4,5 for p1,p2,p3
+                    [p1_45, po_p1_45] = load_postprocessed_data(main_path, n_participants, ...
+                        onsets_4_5, partition1, type_of_analysis);
+                    [p2_45, po_p2_45] = load_postprocessed_data(main_path, n_participants, ...
+                        onsets_4_5, partition2, type_of_analysis);
+                    [p3_45, po_p3_45] = load_postprocessed_data(main_path, n_participants, ...
+                        onsets_4_5, partition3, type_of_analysis);
 
-                        p1_45 = to_frequency_data(p1_45, main_path, 1, ...
-                            po_p1_45, analysis, frequency_level, foi, ...
-                            'p145');
+                    p1_45 = to_frequency_data(p1_45, main_path, 1, ...
+                        po_p1_45, analysis, frequency_level, foi, ...
+                        'p145', toi);
 
-                        p2_45 = to_frequency_data(p2_45, main_path, 2, ...
-                            po_p2_45, analysis, frequency_level, foi, ...
-                            'p245_');
+                    p2_45 = to_frequency_data(p2_45, main_path, 2, ...
+                        po_p2_45, analysis, frequency_level, foi, ...
+                        'p245_', toi);
 
-                        p3_45 = to_frequency_data(p3_45, main_path, 3, ...
-                            po_p3_45, analysis, frequency_level, foi, ...
-                            'p345_');
+                    p3_45 = to_frequency_data(p3_45, main_path, 3, ...
+                        po_p3_45, analysis, frequency_level, foi, ...
+                        'p345_', toi);
 
-                        partition = 1;
-                        [design_p1_45, p1_45] = create_design_matrix_partitions(po_p1_45, p1_45, ...
-                            regression_type, partition, type_of_effect);
-                        partition = 2;
-                        [design_p2_45, p2_45] = create_design_matrix_partitions(po_p2_45, p2_45, ...
-                            regression_type, partition, type_of_effect);
-                        partition = 3;
-                        [design_p3_45, p3_45] = create_design_matrix_partitions(po_p3_45, p3_45, ...
-                            regression_type, partition, type_of_effect);
-    
-                        design_p1_45 = design_p1_45 * 1.65;
-                        design_p2_45 = design_p2_45 * 1.65;
-                        design_p3_45 = design_p3_45 * 1.65;
+                    partition = 1;
+                    [design_p1_45, p1_45] = create_design_matrix_partitions(po_p1_45, p1_45, ...
+                        regression_type, partition, type_of_effect);
+                    partition = 2;
+                    [design_p2_45, p2_45] = create_design_matrix_partitions(po_p2_45, p2_45, ...
+                        regression_type, partition, type_of_effect);
+                    partition = 3;
+                    [design_p3_45, p3_45] = create_design_matrix_partitions(po_p3_45, p3_45, ...
+                        regression_type, partition, type_of_effect);
 
-                        % onsets 6,7 for p1,p2,p3
-                        [p1_67, po_p1_67] = load_postprocessed_data(main_path, n_participants, ...
-                            onsets_6_7, partition1);
-                        [p2_67, po_p2_67] = load_postprocessed_data(main_path, n_participants, ...
-                            onsets_6_7, partition2);
-                        [p3_67, po_p3_67] = load_postprocessed_data(main_path, n_participants, ...
-                            onsets_6_7, partition3);
+                    design_p1_45 = design_p1_45 * 1.65;
+                    design_p2_45 = design_p2_45 * 1.65;
+                    design_p3_45 = design_p3_45 * 1.65;
 
-                        p1_67 = to_frequency_data(p1_67, main_path, 1, ...
-                            po_p1_45, analysis, frequency_level, foi, ...
-                            'p167');
+                    % onsets 6,7 for p1,p2,p3
+                    [p1_67, po_p1_67] = load_postprocessed_data(main_path, n_participants, ...
+                        onsets_6_7, partition1, type_of_analysis);
+                    [p2_67, po_p2_67] = load_postprocessed_data(main_path, n_participants, ...
+                        onsets_6_7, partition2, type_of_analysis);
+                    [p3_67, po_p3_67] = load_postprocessed_data(main_path, n_participants, ...
+                        onsets_6_7, partition3, type_of_analysis);
 
-                        p2_67 = to_frequency_data(p2_67, main_path, 2, ...
-                            po_p2_45, analysis, frequency_level, foi, ...
-                            'p267_');
+                    p1_67 = to_frequency_data(p1_67, main_path, 1, ...
+                        po_p1_45, analysis, frequency_level, foi, ...
+                        'p167', toi);
 
-                        p3_67 = to_frequency_data(p3_67, main_path, 3, ...
-                            po_p3_45, analysis, frequency_level, foi, ...
-                            'p367_');
+                    p2_67 = to_frequency_data(p2_67, main_path, 2, ...
+                        po_p2_45, analysis, frequency_level, foi, ...
+                        'p267_', toi);
 
-                        partition = 1;
-                        [design_p1_67, p1_67] = create_design_matrix_partitions(po_p1_67, p1_67, ...
-                            regression_type, partition, type_of_effect);
-                        partition = 2;
-                        [design_p2_67, p2_67] = create_design_matrix_partitions(po_p2_67, p2_67, ...
-                            regression_type, partition, type_of_effect);
-                        partition = 3;
-                        [design_p3_67, p3_67] = create_design_matrix_partitions(po_p3_67, p3_67, ...
-                            regression_type, partition, type_of_effect);
-                    end
+                    p3_67 = to_frequency_data(p3_67, main_path, 3, ...
+                        po_p3_45, analysis, frequency_level, foi, ...
+                        'p367_', toi);
+
+                    partition = 1;
+                    [design_p1_67, p1_67] = create_design_matrix_partitions(po_p1_67, p1_67, ...
+                        regression_type, partition, type_of_effect);
+                    partition = 2;
+                    [design_p2_67, p2_67] = create_design_matrix_partitions(po_p2_67, p2_67, ...
+                        regression_type, partition, type_of_effect);
+                    partition = 3;
+                    [design_p3_67, p3_67] = create_design_matrix_partitions(po_p3_67, p3_67, ...
+                        regression_type, partition, type_of_effect);
 
                     design_p1_67 = design_p1_67 * 2.72;
                     design_p2_67 = design_p2_67 * 2.72;
@@ -912,9 +936,9 @@ for f = 1:numel(foi_of_interest)
                     plot(onsets_6_7, "LineWidth",3.5)
 
 
-                    xline(numel(design_p1_23), '--r', {'Partition 1'}, 'LineWidth', 3.5)
-                    xline(numel(design_p1_23)*2, '--r', {'Partition 2'}, 'LineWidth', 3.5)       
-                    xline(numel(design_p1_23)*3, '--r', {'Partition 3'}, 'LineWidth', 3.5)
+                    xline(numel(design_p1_23), '--r', {'Partition 1'}, 'LineWidth', plot_line_width)
+                    xline(numel(design_p1_23)*2, '--r', {'Partition 2'}, 'LineWidth', plot_line_width)       
+                    xline(numel(design_p1_23)*3, '--r', {'Partition 3'}, 'LineWidth', plot_line_width)
 
                     legend({'Onsets 2,3', 'Onsets 4,5', 'Onsets 6,7'},'Location','northwest')
                     xlabel('Participants');
@@ -1012,8 +1036,8 @@ for f = 1:numel(foi_of_interest)
                 cfg.correctm = 'cluster';
                 cfg.neighbours = neighbours;
                 cfg.clusteralpha = 0.025;
-                cfg.numrandomization = 2000;
-                cfg.tail = roi_to_apply;
+                cfg.numrandomization = 3000;
+                cfg.tail = 0;
                 cfg.design = design_matrix;
                 cfg.computeprob = 'yes';
                 cfg.alpha = 0.05;
@@ -1023,18 +1047,20 @@ for f = 1:numel(foi_of_interest)
                 %% run the fieldtrip analyses
                 if contains(type_of_analysis, 'time_domain')
                     if contains(experiment_type, 'onsets-2-8-explicit') && strcmp(regression_type, 'no-factor') || contains(regression_type, 'eye')
+                        cfg.clusterthreshold = 'nonparametric_individual';
                         cfg.uvar = 1;
                         cfg.ivar = 2;
                         null_data = set_values_to_zero(data); % create null data to hack a t-test
                         stat = ft_timelockstatistics(cfg, data{:}, null_data{:});
                         save(strcat(new_save_path, '/stat.mat'), 'stat')
                         desired_cluster =1;
-                        %get_region_of_interest_electrodes(stat, desired_cluster, experiment_type, roi_applied);
+                        get_region_of_interest_electrodes(stat, desired_cluster, "roi");
                     elseif contains(experiment_type, 'partitions') || contains(experiment_type, 'onsets-2-8-explicit') ...
                             || contains(experiment_type, 'onsets-1-factor') || contains(experiment_type, 'erps-23-45-67') ...
                             || contains(experiment_type, 'three-way-interaction') || contains(experiment_type, 'Partitions') ...
                             || contains(experiment_type, 'trial-level-2-8') || contains(experiment_type, 'pure-factor-effect')
                         cfg.ivar = 1;
+                        cfg.clusterthreshold = 'nonparametric_individual';
                         stat = ft_timelockstatistics(cfg, data{:});
 
                         %disp(stat.posclusters(1).prob)
@@ -1046,18 +1072,23 @@ for f = 1:numel(foi_of_interest)
                         end
                     end
                 elseif strcmp(type_of_analysis, 'frequency_domain')
-                    if contains(experiment_type, 'onsets-2-8-explicit')
+                    if contains(experiment_type, 'onsets-2-8-explicit')     
+                        desired_cluster = 1;
                         cfg.uvar = 1;
                         cfg.ivar = 2;
                         cfg.avgoverfreq = 'yes';
                         cfg.frequency = [foi(1) foi(2)];
-                        cfg.clusterthreshold = 'nonparametric_common';
+                        cfg.clusterthreshold = 'nonparametric_individual';
                         stat = ft_freqstatistics(cfg, data{:}, null_data{:});
                         save(strcat(new_save_path, '/stat.mat'), 'stat')
+                        roi_name = "roi_" + "freq_" +  int2str(foi(1)) + "_" + int2str(foi(2));
+                        %get_region_of_interest_electrodes(stat, desired_cluster, roi_name);
                     else
+                        cfg.clusterthreshold = 'nonparametric_individual';
                         cfg.frequency = [foi(1) foi(2)];
                         cfg.ivar = 1;
                         cfg.avgoverfreq = 'yes';
+                        cfg.clusterthreshold = 'nonparametric_individual';
                         stat = ft_freqstatistics(cfg, data{:});
                         save(strcat(new_save_path, '/stat.mat'), 'stat')
                         if ~isfield(stat, 'posclusters') || ~isfield(stat, 'negclusters')
@@ -1111,6 +1142,7 @@ for f = 1:numel(foi_of_interest)
 
                 %% generate ERPs using the stat information
                 number_of_clusters_to_plot = 2; % plots top k clusters
+                plot_thin_med_thick = 0;
                 if generate_erps == 1
                     num_pos_clusters = numel(stat.posclusters);
                     if num_pos_clusters > 0
@@ -1119,7 +1151,7 @@ for f = 1:numel(foi_of_interest)
                                 generate_peak_erps(master_dir, main_path, experiment_type, ...
                                     stat, pos_cluster_peak_level_data{i}, 'positive', desired_design_mtx, i, ...
                                     new_save_path, weight_erps, weighting_factor, ...
-                                    type_of_analysis, foi);
+                                    type_of_analysis, foi, plot_thin_med_thick, toi);
                             end
                         end
                     end
@@ -1155,9 +1187,9 @@ for f = 1:numel(foi_of_interest)
                 %end
 
                 %% make pretty plots
-               if create_topographic_maps == 1
+               if create_topographic_maps == 1 &&  numel(stat.posclusters) > 0
                     create_viz_topographic_maps(data, stat, start_latency, end_latency, ...
-                        0.05, 'positive', new_save_path, type_of_analysis)
+                        0.05, 'positive', new_save_path, type_of_analysis, toi)
 
                     %% plot the peak electrode
                     create_viz_peak_electrode(stat, first_pos_peak_level_stats, new_save_path)
@@ -1215,6 +1247,7 @@ cfg.highlightcolor = {'r', [0 0 1]};
 cfg.highlightsize = 10;
 cfg.comment = 'no';
 cfg.style = 'blank';
+
 
 ft_topoplotER(cfg, stat);
 
@@ -1521,9 +1554,9 @@ close;
 end
 
 %% generate ERPs
-function generate_peak_erps(master_dir, main_path, experiment_type, ...
+    function generate_peak_erps(master_dir, main_path, experiment_type, ...
     stat, peak_information, effect_type, regression_type, desired_cluster, ...
-    save_dir, weight_erps, weighting_factor, type_of_analysis, foi)
+    save_dir, weight_erps, weighting_factor, type_of_analysis, foi, plot_thin_med_thick, toi)
 
 df = stat.df;
 time = stat.time;
@@ -1565,72 +1598,57 @@ save_dir = strcat(save_dir, '/', plot_desc);
 generate_plots(master_dir, main_path, experiment_type, start_of_effect,...
     end_of_effect, peak_electrode, peak_time, peak_t_value, df, ...
     regression_type, pvalue, cluster_size, save_dir, effect_type, ...
-    weight_erps, weighting_factor, type_of_analysis, foi, desired_cluster)
+    weight_erps, weighting_factor, type_of_analysis, foi, desired_cluster, plot_thin_med_thick, ...
+    toi)
 
 close;
 end
 
 %% Create a hacked ROI for freq data
-function new_data = create_hacked_roi_freq(data, roi)
-roi_clusters = roi.clusters;
-roi_time = roi.time;
+%% psudeo code it tomorrow
+function all_new_data = create_hacked_roi_freq(data, roi)
+    roi_clusters = squeeze(roi.clusters);
+    roi_time = roi.time;
+    participants = data{1};
 
-data = data{1};
-num_participants = numel(data);
+    new_participant_data = {};
+    for i = 1:numel(participants)
+        participant_data = participants{i};
+        data = participant_data.powspctrm;
+        data_time = participant_data.time;
+   
+        new_data = NaN(size(data));
+    
+        for electrode = 1:size(roi_clusters, 1)
+            for t = 1:size(roi_clusters, 2)
+                cluster_at_elec_time = roi_clusters(electrode, t);
+                if cluster_at_elec_time == 1
+                    cluster_time_at_t = roi_time(t);
+                    
+                     [~,idx]=min(abs(cluster_time_at_t-data_time));
 
-start_latency = NaN;
-end_latency = NaN;
-new_data = {};
-for i = 1:num_participants
-    each_participant = data{i};
-    participant_data = each_participant.powspctrm;
-    participant_time = each_participant.time;
-
-    [electrodes, freq, time] = size(participant_data);
-    new_participant_data = NaN(electrodes, freq, time);
-    time_x = 1:1:time;
-    time_x = time_x * 2;
-
-    for roi_idx = 1:numel(roi_time)
-        t = roi_time(roi_idx)*1000;
-        [~,idx]=min(abs(time_x-t));
-        idx = idx + 100; % for baselining period
-        clusters_at_t = roi_clusters(:,roi_idx);
-
-        if isnan(start_latency) && sum(clusters_at_t)>=1
-            start_latency =t;
-        elseif roi_idx == numel(roi_time)
-            end_latency = t;
+                    data_points_all_freq = data(electrode, :, idx);
+                    new_data(electrode, :, idx) = data_points_all_freq;
+                end 
+            end
         end
+        participant_data.powspctrm = new_data;
+        new_participant_data{i} = participant_data;
     end
 
-end
-
-new_data{1} = new_data;
-
-end
+all_new_data = {new_participant_data};
+end 
 
 %% Create a hacked ROI in the data
-function new_data = create_hacked_roi(data, roi, weight_roi)
+function new_data = xcreate_hacked_roi(data, roi, weight_roi)
 roi_clusters = roi.clusters;
 roi_time = roi.time;
-
-if weight_roi == 1
-    [electrodes, ~] = size(roi_clusters);
-    total_sum = sum(roi_clusters);
-    weighted_template = total_sum/electrodes;
-end
 
 start_latency = NaN;
 end_latency = NaN;
 new_data = {};
 for idx_i = 1:numel(data)
-    datatype_class = class(data);
-    if strcmp(datatype_class, 'struct')
-        each_participant = data;
-    elseif strcmp(datatype_class, 'cell')
-        each_participant = data{idx_i};
-    end
+    each_participant = data{idx_i};
     participant_data = each_participant.avg;
     participant_time = each_participant.time;
     [electrodes, time] = size(participant_data);
@@ -1653,10 +1671,6 @@ for idx_i = 1:numel(data)
         for electrode_idx=1:numel(clusters_at_t)
             if clusters_at_t(electrode_idx) == 1
                 new_participant_data(electrode_idx, idx) = participant_data(electrode_idx, idx);
-                if weight_roi == 1
-                    weighting_at_t =  weighted_template(roi_idx);
-                    new_participant_data(electrode_idx, idx) = new_participant_data(electrode_idx, idx) * weighting_at_t;
-                end
             end
         end
 
@@ -1677,6 +1691,55 @@ for idx_i = 1:numel(data)
     new_data{idx_i} = each_participant;
 end
 end
+
+function new_data = create_hacked_roi(data, roi, weight_roi)
+    % Extract cluster and time information from the ROI
+    roi_clusters = roi.clusters;
+    roi_time = roi.time;
+
+    % Initialize latency and result variables
+    start_latency = NaN;
+    end_latency = NaN;
+    new_data = {}; % Initialize empty cell array for the modified data
+
+    % Loop through each participant's data
+    for participant_idx = 1:numel(data)
+        participant = data{participant_idx}; % Current participant's data
+        original_data = participant.avg;    % Extract EEG data
+        participant_time = participant.time; % Extract time vector
+        [num_electrodes, num_timepoints] = size(original_data); % Data dimensions
+        modified_data = NaN(num_electrodes, num_timepoints); % Pre-allocate new participant data
+
+        % Loop through ROI time points
+        for roi_idx = 1:numel(roi_time)
+            roi_time_ms = roi_time(roi_idx);
+            [~, closest_time_idx] = min(abs(participant_time - roi_time_ms)); % Find closest time point in participant data
+
+            % Get clusters corresponding to the current ROI time point
+            current_clusters = roi_clusters(:, roi_idx);
+
+            % Set start latency at the first detected cluster activation
+            if isnan(start_latency) && sum(current_clusters) >= 1
+                start_latency = roi_time_ms;
+            elseif roi_idx == numel(roi_time)
+                % Set end latency at the last ROI time point
+                end_latency = roi_time_ms;
+            end
+
+            % Modify participant data for active electrodes at this time point
+            for electrode_idx = 1:numel(current_clusters)
+                if current_clusters(electrode_idx) == 1
+                    modified_data(electrode_idx, closest_time_idx) = original_data(electrode_idx, closest_time_idx);
+                end
+            end
+        end
+
+        % Store the modified data for this participant
+        participant.avg = modified_data;
+        new_data{participant_idx} = participant;
+    end
+end
+
 
 %% baed on onsets 2-8 mean intercept effect, get the start and end latency
 %% based on our ROI
@@ -1718,14 +1781,16 @@ end
 %% based on onsets 2-8 mean intercept effect, save the electrodes
 % which are at the peak level - used for ROI analysis
 % saves the neighbourhood of electrodes for use later on
-function get_region_of_interest_electrodes(stat, desired_cluster, experiment_type, roi_applied)
+function get_region_of_interest_electrodes(stat, desired_cluster, roi_name)
 roi_clusters = stat.posclusterslabelmat;
 roi_clusters(roi_clusters>desired_cluster) = 0;
 time = stat.time;
 roi.clusters = roi_clusters;
 roi.time = time;
 
-save 'D:/PhD/fieldtrip/roi' roi;
+filename = strcat("C:\Users\CDoga\Documents\Research\PhD\fieldtrip\roi\", roi_name);
+
+save(filename, 'roi');
 
 end
 
@@ -1797,7 +1862,7 @@ ylim([0 ylim_max]);
 grid on;
 xlabel('Time (ms)', 'FontSize', 14);
 ylabel('Percentage of cluster', 'FontSize', 14);
-xlim([0,800])
+xlim([0,400])
 %xlim([0,800])
 %xlim([0,3000])
 title(ptitle, 'FontSize', 14);
@@ -1810,7 +1875,7 @@ close;
 end
 
 %% used to generate 'peak' level stats
-function [peak_level_electrode, all_electrode_stats] = get_peak_level_stats(stat, cluster, type)
+ function [peak_level_electrode, all_electrode_stats] = get_peak_level_stats(stat, cluster, type)
 peak_level_stats = containers.Map;
 
 time = stat.time;
@@ -1903,7 +1968,7 @@ end
 end
 %% used to create the topographic maps
 function create_viz_topographic_maps(data1, stat, start_latency, ...
-    end_latency, alpha, type, save_dir, analysis_type)
+    end_latency, alpha, type, save_dir, analysis_type, toi)
 
 
 if numel(stat.negclusters) < 1 && strcmp(type, 'negative')
@@ -1916,44 +1981,29 @@ end
 stat.stat(isnan(stat.stat))=0;
 
 if strcmp(analysis_type, 'frequency_domain')
-    %fixes the interpolation issue of NaNs
     stat.stat(isnan(stat.stat))=0;
-
-    timestep = 0.075; % in seconds (50ms)
-    sampling_rate = 512;
-    sample_count  = length(stat.time);
+    timestep = 0.25; % in seconds (50ms)
 
     j = [start_latency:timestep:end_latency]; % Temporal endpoints (in seconds) of the ERP average computed in each subplot
     [i1,i2] = match_str(data1{1}.label, stat.label);
 
-    if strcmp(type,'positive')
-        pos_cluster_pvals = [stat.posclusters(:).prob];
-        pos_clust = find(pos_cluster_pvals < 0.05);
-        pos = ismember(stat.posclusterslabelmat, pos_clust);
-        save_dir = strcat(save_dir, '/', 'positive_topographic.png');
-        if isempty(pos_clust)
-            clust = zeros(128,1,401); %401 before
-        else
-            clust = pos;
-        end
-    elseif strcmp(type,'negative')
-        neg_cluster_pvals = [stat.negclusters(:).prob];
-        neg_clust = find(neg_cluster_pvals < 0.05);
-        neg = ismember(stat.negclusterslabelmat, neg_clust);
-        if isempty(neg_clust)
-            clust = zeros(128,1,401); %401 before
-        else
-            clust = neg;
-        end
-        save_dir = strcat(save_dir, '/', 'negative_topographic.png');
+    pos_cluster_pvals = [stat.posclusters(:).prob];
+    pos_clust = find(pos_cluster_pvals < 0.05);
+    pos = ismember(stat.posclusterslabelmat, pos_clust);
+    save_dir = strcat(save_dir, '/', 'positive_topographic.png');
+    if isempty(pos_clust)
+        clust = zeros(size(stat.stat)); %401 before
+    else
+        clust = pos;
     end
+
 
     max_t = max(stat.stat, [], 'all');
     max_t = round(max_t, 2);
 
     max_iter = numel(j)-1;
     for k = 1:max_iter
-        subplot(2,10,k);
+        subplot(4,4,k);
         cfg = [];
         cfg.parameter = 'stat';
         cfg.xlim = [j(k) j(k+1)];
@@ -1961,20 +2011,18 @@ if strcmp(analysis_type, 'frequency_domain')
         clust_int = zeros(128,1);
         t_idx = find(stat.time>=j(k) & stat.time<=j(k+1));
         clust_int(i1) = all(clust(i2,1,t_idx),3);
-        cfg.colorbar = 'SouthOutside';
+        %cfg.colorbar = 'SouthOutside';
         cfg.marker ='on';
         cfg.markersize = 3;
         cfg.highlight = 'on';
         cfg.highlightchannel = find(clust_int);
         cfg.highlightcolor = {'r',[0 0 1]};
-        cfg.highlightsize = 2;
-        cfg.fontsize = 15;
+        cfg.highlightsize = 14;
+        cfg.fontsize = 14;
         cfg.comment = 'xlim';
         cfg.commentpos = 'title';
         ft_topoplotTFR(cfg, stat);
     end
-
-
 
 else
     cfg = [];
@@ -2031,10 +2079,11 @@ else
         cfg.parameter = 'stat';
         cfg.zlim=[-max_t,max_t];
         cfg.colorbar = 'SouthOutside';
-        cfg.fontsize = 14;
+        cfg.fontsize = 11;
         cfg.markerfontsize = 14;
         cfg.highlightfontsize = 14;
         cfg.style = 'straight';
+        cfg.labels = 'off';
         %cfg.layout = 'biosemi128.lay';
         ft_topoplotER(cfg, stat);
         %ft_clusterplot(cfg, stat)
@@ -2043,14 +2092,14 @@ end
 set(gcf,'Position',[100 100 2000 1500])
 exportgraphics(gcf,save_dir,'Resolution',500);
 
-topo = imread(save_dir);
+%topo = imread(save_dir);
 
-timings = topo(1:200, :, :);
-topographic_maps = topo(700:1820, :, :);
-legends = topo(2400:2648, :, :);
-new_topo = [timings; topographic_maps; legends];
+%timings = topo(1:200, :, :);
+%topographic_maps = topo(700:1820, :, :);
+%legends = topo(2400:2648, :, :);
+%new_topo = [timings; topographic_maps; legends];
 
-imwrite(new_topo,save_dir,'PNG');
+%imwrite(new_topo,save_dir,'PNG');
 close;
 end
 
@@ -2378,13 +2427,13 @@ end
 
 %% load post-processed fildtrip data
 function [ft_regression_data, participant_order] = ...
-    load_postprocessed_data(main_path, n_participants, filename, partition)
+    load_postprocessed_data(main_path, n_participants, filename, partition, domain)
 
 ft_regression_data = {};
 participant_order = {};
 
 idx_used_for_saving_data = 1;
-for i=1:1
+for i=1:40
     disp(strcat('LOADING PARTICIPANT...', int2str(i)));
     participant_main_path = strcat(main_path, int2str(i));
 
@@ -2402,6 +2451,18 @@ for i=1:1
 
     if exist(participant_main_path, 'dir')
         cd(participant_main_path);
+        
+        if strcmp(domain, "time_domain_p1")
+            domain = "time_domain";
+        end
+
+        if exist(domain, 'dir')
+             cd(domain)
+        else
+            continue;
+        end
+
+       
 
         if isfile(filename)
             load(filename);
@@ -2585,10 +2646,19 @@ end
 function generate_plots(master_dir, main_path, experiment_type, start_peak, ...
     end_peak, peak_electrode, peak_effect, t_value, df, regression_type, ...
     pvalue, cluster_size, save_dir, effect_type, weight_erps, weighting_factor, ...
-    type_of_analysis, foi, desired_cluster)
+    type_of_analysis, foi, desired_cluster, plot_thin_med_thick, toi)
 
 
-plotting_window = [-200, 800];
+start_plotting = toi(1) * 1000;
+start_plotting = start_plotting - 200;
+end_plotting = toi(2) * 1000;
+end_plotting = end_plotting + 200;
+
+start_plotting = -200;
+end_plotting = 300;
+
+
+plotting_window = [start_plotting,  end_plotting];
 %rmpath C:/ProgramFiles/spm8;
 %addpath C:/ProgramFiles/spm12;
 cd(master_dir);
@@ -2604,13 +2674,13 @@ if strcmp(experiment_type, 'onsets-2-8-explicit')
     if strcmp(type_of_analysis, 'time_domain')
         data_file = 'time_domain_mean_intercept_onsets_2_3_4_5_6_7_8_grand-average.mat';
         [data, ~] = load_postprocessed_data(main_path, n_participants, ...
-            data_file, partition);
+            data_file, partition, type_of_analysis);
         e_idx = find(contains(data{1}.label,peak_electrode));
     elseif strcmp(type_of_analysis, 'frequency_domain')
         data_file = 'frequency_domain_mean_intercept_onsets_2_3_4_5_6_7_8_grand-average.mat';
         freq = to_frequency_data(main_path, partition, ...
             'load', 'trial-level', foi, ...
-            'mean_intercept', data_file, n_participants);
+            'mean_intercept', data_file, n_participants, toi);
         n_part = numel(freq);
 
         e_idx = find(contains(freq{1}.pgi.label,peak_electrode));
@@ -2630,7 +2700,7 @@ elseif strcmp(experiment_type, 'pure-factor-effect') || strcmp(experiment_type, 
     
         data_file = 'time_domain_mean_intercept_onsets_2_3_4_5_6_7_8_grand-average.mat';
         [data, participant_order] = load_postprocessed_data(main_path, n_participants, ...
-            data_file, partition);
+            data_file, partition, type_of_analysis);
         e_idx = find(contains(data{1}.label,peak_electrode));
     
         [data_h, data_l] = get_partitions_medium_split(data, participant_order,...
@@ -2647,18 +2717,19 @@ elseif strcmp(experiment_type, 'pure-factor-effect') || strcmp(experiment_type, 
         type_of_effect = 'habituation';
 
         [data, participant_order] = load_postprocessed_data(main_path, n_participants, ...
-            data_file, partition);
+            data_file, partition, type_of_analysis);
         e_idx = find(contains(data{1}.label,peak_electrode));
-    
-        freq = to_frequency_data(data, main_path, 1, ...
-            participant_order, 'load', 'trial-level', foi, 'mean_intercept');
+       
+        freq = to_frequency_data(main_path, partition, ...
+            'load', 'trial-level', foi, ...
+            'mean_intercept', data_file, n_participants, toi);
 
         data1 = format_for_plotting_functions(freq);
 
         [data1_h, data1_l] = get_partitions_medium_split(data1, participant_order,...
             regression_type, 1, type_of_effect, weight_erps, weighting_factor);
-        ci_h = bootstrap_erps(data1_h, e_idx);
-        ci_l = bootstrap_erps(data1_l, e_idx);
+        ci1_h = bootstrap_erps(data1_h, e_idx);
+        ci1_l = bootstrap_erps(data1_l, e_idx);
 
         data = data1;
     end
@@ -2671,7 +2742,7 @@ elseif strcmp(experiment_type, 'partitions-2-8') && contains(type_of_analysis, '
     type_of_effect = 'habituation';
 
     [data, participant_order_1] = load_postprocessed_data(main_path, n_participants, ...
-        data_file, partition1);
+        data_file, partition1, type_of_analysis);
     e_idx = find(contains(data{1}.label,peak_electrode));
     ci = bootstrap_erps(data, e_idx);
 
@@ -2699,12 +2770,12 @@ elseif strcmp(experiment_type, 'partitions (no factor)') || strcmp(experiment_ty
     if strcmp(type_of_analysis, 'time_domain')
         data_file = 'time_domain_partitions_partitioned_onsets_2_3_4_5_6_7_8_grand-average.mat';
         [data1, participant_order_1] = load_postprocessed_data(main_path, n_participants, ...
-            data_file, partition1);
+            data_file, partition1, type_of_analysis);
         e_idx = find(contains(data1{1}.label,peak_electrode));
         [data2, participant_order_2] = load_postprocessed_data(main_path, n_participants, ...
-            data_file, partition2);
+            data_file, partition2, type_of_analysis);
         [data3, participant_order_3] = load_postprocessed_data(main_path, n_participants, ...
-            data_file, partition3);
+            data_file, partition3, type_of_analysis);
 
         data = [data1,data2,data3];
 
@@ -2724,27 +2795,31 @@ elseif strcmp(experiment_type, 'partitions (no factor)') || strcmp(experiment_ty
     elseif strcmp(type_of_analysis, 'frequency_domain')
         data_file = 'frequency_domain_partitions_partitioned_onsets_2_3_4_5_6_7_8_grand-average.mat';
         [data1, participant_order_1] = load_postprocessed_data(main_path, n_participants, ...
-            data_file, partition1);
+            data_file, partition1, type_of_analysis);
+
         e_idx = find(contains(data1{1}.label,peak_electrode));
+
+
         [data2, participant_order_2] = load_postprocessed_data(main_path, n_participants, ...
-            data_file, partition2);
+            data_file, partition2, type_of_analysis);
         [data3, participant_order_3] = load_postprocessed_data(main_path, n_participants, ...
-            data_file, partition3);
+           data_file, partition3, type_of_analysis);
         type_of_effect = 'habituation';
 
-        p1_freq = to_frequency_data(data1, main_path, 1, ...
-            participant_order_1, 'load', 'trial-level', foi, ...
-            'partition_');
+        p1_freq = to_frequency_data(main_path, partition1, ...
+            'load', 'trial-level', foi, ...
+            'partition_', data_file, n_participants, toi);
+
+        p2_freq = to_frequency_data(main_path, partition2, ...
+            'load', 'trial-level', foi, ...
+            'partition_', data_file, n_participants, toi);
+
+        p3_freq = to_frequency_data(main_path, partition3, ...
+            'load', 'trial-level', foi, ...
+            'partition_', data_file, n_participants, toi);
+        
         data1 = format_for_plotting_functions(p1_freq);
-
-        p2_freq = to_frequency_data(data2, main_path, 2, ...
-            participant_order_2, 'load', 'trial-level', foi, ...
-            'partition_');
         data2 = format_for_plotting_functions(p2_freq);
-
-        p3_freq = to_frequency_data(data3, main_path, 3, ...
-            participant_order_3, 'load', 'trial-level', foi, ...
-            'partition_');
         data3 = format_for_plotting_functions(p3_freq);
 
         [data1_h, data1_l] = get_partitions_medium_split(data1, participant_order_1,...
@@ -2762,238 +2837,6 @@ elseif strcmp(experiment_type, 'partitions (no factor)') || strcmp(experiment_ty
 
         data = [data1, data2, data3];
     end
-
-
- elseif strcmp(experiment_type, 'investigate_twi') %% reproduction to remove
-     % load the data   
-     n_participants = 40;
-        partition1.is_partition = 1;
-        partition1.partition_number = 1;
-        partition2.is_partition = 1;
-        partition2.partition_number = 2;
-        partition3.is_partition = 1;
-        partition3.partition_number = 3;
-
-        onsets_2_3 = 'time_domain_partitions_partitioned_onsets_2_3_grand-average.mat';
-        onsets_4_5 = 'time_domain_partitions_partitioned_onsets_4_5_grand-average.mat';
-        onsets_6_7 = 'time_domain_partitions_partitioned_onsets_6_7_grand-average.mat';
-
-        type_of_effect = 'habituation';
-
-
-        % p1,p2,p3 for onsets 2;3
-
-        [p1_23, po_p1_23] = load_postprocessed_data(main_path, n_participants, ...
-            onsets_2_3, partition1);
-        [p2_23, po_p2_23] = load_postprocessed_data(main_path, n_participants, ...
-            onsets_2_3, partition2);
-        [p3_23, po_p3_23] = load_postprocessed_data(main_path, n_participants, ...
-            onsets_2_3, partition3);
-        
-        [p1_23_h, p1_23_l] = get_partitions_medium_split(p1_23, po_p1_23,...
-            regression_type, 1, type_of_effect, weight_erps, weighting_factor);
-        [p2_23_h, p2_23_l] = get_partitions_medium_split(p2_23, po_p2_23,...
-            regression_type, 2, type_of_effect, weight_erps, weighting_factor);
-        [p3_23_h, p3_23_l] = get_partitions_medium_split(p3_23, po_p3_23,...
-            regression_type, 3, type_of_effect, weight_erps, weighting_factor);
-        
-        
-        e_idx = find(contains(p1_23{1}.label,'A23'));
-        e_idx11 = find(contains(p1_23{1}.label,'A11'));
-
-        p1_23_h23 = bootstrap_erps(p1_23_h, e_idx);
-        p1_23_l23 = bootstrap_erps(p1_23_l, e_idx);
-
-        p2_23_h23 = bootstrap_erps(p2_23_h, e_idx);
-        p2_23_l23 = bootstrap_erps(p2_23_l, e_idx);
-
-        p3_23_h23 = bootstrap_erps(p3_23_h, e_idx);
-        p3_23_l23 = bootstrap_erps(p3_23_l, e_idx);
-
-
-        p1_23_h11 = bootstrap_erps(p1_23_h, e_idx11);
-        p1_23_l11 = bootstrap_erps(p1_23_l, e_idx11);
-
-        p2_23_h11 = bootstrap_erps(p2_23_h, e_idx11);
-        p2_23_l11 = bootstrap_erps(p2_23_l, e_idx11);
-
-        p3_23_h11 = bootstrap_erps(p3_23_h, e_idx11);
-        p3_23_l11 = bootstrap_erps(p3_23_l, e_idx11);
-
-        % p1,p2,p3 for onsets 4;5
-
-        [p1_45, po_p1_45] = load_postprocessed_data(main_path, n_participants, ...
-            onsets_4_5, partition1);
-        [p2_45, po_p2_45] = load_postprocessed_data(main_path, n_participants, ...
-            onsets_4_5, partition2);
-        [p3_45, po_p3_45] = load_postprocessed_data(main_path, n_participants, ...
-            onsets_4_5, partition3);
-
-        [p1_45_h, p1_45_l] = get_partitions_medium_split(p1_45, po_p1_45,...
-            regression_type, 1, type_of_effect, weight_erps, weighting_factor);
-        [p2_45_h, p2_45_l] = get_partitions_medium_split(p2_45, po_p2_45,...
-            regression_type, 2, type_of_effect, weight_erps, weighting_factor);
-        [p3_45_h, p3_45_l] = get_partitions_medium_split(p3_45, po_p3_45,...
-            regression_type, 3, type_of_effect, weight_erps, weighting_factor);
-
-
-        p1_45_h23 = bootstrap_erps(p1_45_h, e_idx);
-        p1_45_l23 = bootstrap_erps(p1_45_l, e_idx);
-
-        p2_45_h23 = bootstrap_erps(p2_45_h, e_idx);
-        p2_45_l23 = bootstrap_erps(p2_45_l, e_idx);
-
-        p3_45_h23 = bootstrap_erps(p3_45_h, e_idx);
-        p3_45_l23 = bootstrap_erps(p3_45_l, e_idx);
-
-        
-        p1_45_h11 = bootstrap_erps(p1_45_h, e_idx11);
-        p1_45_l11 = bootstrap_erps(p1_45_l, e_idx11);
-
-        p2_45_h11 = bootstrap_erps(p2_45_h, e_idx11);
-        p2_45_l11 = bootstrap_erps(p2_45_l, e_idx11);
-
-        p3_45_h11 = bootstrap_erps(p3_45_h, e_idx11);
-        p3_45_l11 = bootstrap_erps(p3_45_l, e_idx11);
-
-        % p1,p2,p3 for onsets 6'7
-        [p1_67, po_p1_67] = load_postprocessed_data(main_path, n_participants, ...
-            onsets_6_7, partition1);
-        [p2_67, po_p2_67] = load_postprocessed_data(main_path, n_participants, ...
-            onsets_6_7, partition2);
-        [p3_67, po_p3_67] = load_postprocessed_data(main_path, n_participants, ...
-            onsets_6_7, partition3);
-
-        [p1_67_h, p1_67_l] = get_partitions_medium_split(p1_67, po_p1_67,...
-            regression_type, 1, type_of_effect, weight_erps, weighting_factor);
-        [p2_67_h, p2_67_l] = get_partitions_medium_split(p2_67, po_p2_67,...
-            regression_type, 2, type_of_effect, weight_erps, weighting_factor);
-        [p3_67_h, p3_67_l] = get_partitions_medium_split(p3_67, po_p3_67,...
-            regression_type, 3, type_of_effect, weight_erps, weighting_factor);
-
-
-        p1_67_h23 = bootstrap_erps(p1_67_h, e_idx);
-        p1_67_l23 = bootstrap_erps(p1_67_l, e_idx);
-
-        p2_67_h23 = bootstrap_erps(p2_67_h, e_idx);
-        p2_67_l23 = bootstrap_erps(p2_67_l, e_idx);
-
-        p3_67_h23 = bootstrap_erps(p3_67_h, e_idx);
-        p3_67_l23 = bootstrap_erps(p3_67_l, e_idx);
-
-
-        p1_67_h11 = bootstrap_erps(p1_67_h, e_idx11);
-        p1_67_l11 = bootstrap_erps(p1_67_l, e_idx11);
-
-        p2_67_h11 = bootstrap_erps(p2_67_h, e_idx11);
-        p2_67_l11 = bootstrap_erps(p2_67_l, e_idx11);
-
-        p3_67_h11 = bootstrap_erps(p3_67_h, e_idx11);
-        p3_67_l11 = bootstrap_erps(p3_67_l, e_idx11);
-
-
-
-        % re-create the partitions effect by linearly adding everything
-        %% create all of the fields
-%         ci1_h = {};
-%         ci1_l = {};
-%         ci2_h = {};
-%         ci2_l = {};
-%         ci3_h = {};
-%         ci3_l = {};
-%         fields_to_aggregate = fieldnames(p1_67_h);
-% 
-%         for idx = 1:numel(fields_to_aggregate)
-%             fld = fields_to_aggregate{idx};
-%             ci1_h.(fld) = zeros(1,2150);
-%             ci1_l.(fld) = zeros(1,2150); 
-%             ci2_h.(fld) = zeros(1,2150); 
-%             ci2_l.(fld) = zeros(1,2150); 
-%             ci3_h.(fld) = zeros(1,2150); 
-%             ci3_l.(fld) = zeros(1,2150);
-%         end
-    
-          
-        % for partitions
-        %%%
-        %for idx = 1:numel(fields_to_aggregate)
-         %   fld = fields_to_aggregate{idx};
-         %   ci1_h.(fld) = (p1_23_h.(fld) + p1_45_h.(fld) + p1_67_h.(fld))/3;
-         %   ci1_l.(fld) = (p1_23_l.(fld) + p1_45_l.(fld) + p1_67_l.(fld))/3;
-        %
-        %    ci2_h.(fld) = (p2_23_h.(fld) + p2_45_h.(fld) + p2_67_h.(fld))/3;
-        %    ci2_l.(fld) = (p2_23_l.(fld) + p2_45_l.(fld) + p2_67_l.(fld))/3;
-        %
-        %    ci3_h.(fld) = (p3_23_h.(fld) + p3_45_h.(fld) + p3_67_h.(fld))/3;
-        %    ci3_l.(fld) = (p3_23_l.(fld) + p3_45_l.(fld) + p3_67_l.(fld))/3;
-        %end
-        %%%
-
-%         for idx = 1:numel(fields_to_aggregate)
-%             fld = fields_to_aggregate{idx};
-%             ci1_h.(fld) = (p1_23_h.(fld) + p2_23_h.(fld) + p3_23_h.(fld))/3;
-%             ci1_l.(fld) = (p1_23_l.(fld) + p2_23_l.(fld) + p3_23_l.(fld))/3;
-%         
-%             ci2_h.(fld) = (p1_45_h.(fld) + p2_45_h.(fld) + p3_45_h.(fld))/3;
-%             ci2_l.(fld) = (p1_45_l.(fld) + p2_45_l.(fld) + p3_45_l.(fld))/3;
-%         
-%             ci3_h.(fld) = (p1_67_h.(fld) + p2_67_h.(fld) + p3_67_h.(fld))/3;
-%             ci3_l.(fld) = (p1_67_l.(fld) + p2_67_l.(fld) + p3_67_l.(fld))/3;
-%         end
-
-%         experiment_type = 'erps-23-45-67';
-        fields_to_aggregate = fieldnames(p1_67_h23);
-    
-        p1_23_h = {};
-        p2_23_h = {};
-        p3_23_h = {};
-        p1_23_l = {};
-        p2_23_l = {};
-        p3_23_l = {};
-
-        p1_45_h = {};
-        p2_45_h = {};
-        p3_45_h = {};
-        p1_45_l = {};
-        p2_45_l = {};
-        p3_45_l = {};
-
-        p1_67_h = {};
-        p2_67_h = {};
-        p3_67_h = {};
-        p1_67_l = {};
-        p2_67_l = {};
-        p3_67_l = {};
-
-        for idx = 1:numel(fields_to_aggregate)
-            fld = fields_to_aggregate{idx};
-
-            p1_23_h.(fld) = (p1_23_h23.(fld) + p1_23_h11.(fld))/2;
-            p2_23_h.(fld) = (p2_23_h23.(fld) + p2_23_h11.(fld))/2;
-            p3_23_h.(fld) = (p3_23_h23.(fld) + p3_23_h11.(fld))/2;
-            p1_23_l.(fld) = (p1_23_l23.(fld) + p1_23_l11.(fld))/2;
-            p2_23_l.(fld) = (p2_23_l23.(fld) + p2_23_l11.(fld))/2;
-            p3_23_l.(fld) = (p3_23_l23.(fld) + p3_23_l11.(fld))/2;
-
-            p1_45_h.(fld) = (p1_45_h23.(fld) + p1_45_h11.(fld))/2;
-            p2_45_h.(fld) = (p2_45_h23.(fld) + p2_45_h11.(fld))/2;
-            p3_45_h.(fld) = (p3_45_h23.(fld) + p3_45_h11.(fld))/2;
-            p1_45_l.(fld) = (p1_45_l23.(fld) + p1_45_l11.(fld))/2;
-            p2_45_l.(fld) = (p2_45_l23.(fld) + p2_45_l11.(fld))/2;
-            p3_45_l.(fld) = (p3_45_l23.(fld) + p3_45_l11.(fld))/2;
-
-            p1_67_h.(fld) = (p1_67_h23.(fld) + p1_67_h11.(fld))/2;
-            p2_67_h.(fld) = (p2_67_h23.(fld) + p2_67_h11.(fld))/2;
-            p3_67_h.(fld) = (p3_67_h23.(fld) + p3_67_h11.(fld))/2;
-            p1_67_l.(fld) = (p1_67_l23.(fld) + p1_67_l11.(fld))/2;
-            p2_67_l.(fld) = (p2_67_l23.(fld) + p2_67_l11.(fld))/2;
-            p3_67_l.(fld) = (p3_67_l23.(fld) + p3_67_l11.(fld))/2;
-            
-        end
-        
-
-        data = p1_45;
-
  elseif strcmp(experiment_type, 'three-way-interaction')
         n_participants = 40;
         partition1.is_partition = 1;
@@ -3013,11 +2856,11 @@ elseif strcmp(experiment_type, 'partitions (no factor)') || strcmp(experiment_ty
         % p1,p2,p3 for onsets 2;3
 
         [p1_23, po_p1_23] = load_postprocessed_data(main_path, n_participants, ...
-            onsets_2_3, partition1);
+            onsets_2_3, partition1, type_of_analysis);
         [p2_23, po_p2_23] = load_postprocessed_data(main_path, n_participants, ...
-            onsets_2_3, partition2);
+            onsets_2_3, partition2, type_of_analysis);
         [p3_23, po_p3_23] = load_postprocessed_data(main_path, n_participants, ...
-            onsets_2_3, partition3);
+            onsets_2_3, partition3, type_of_analysis);
         
         [p1_23_h, p1_23_l] = get_partitions_medium_split(p1_23, po_p1_23,...
             regression_type, 1, type_of_effect, weight_erps, weighting_factor);
@@ -3041,11 +2884,11 @@ elseif strcmp(experiment_type, 'partitions (no factor)') || strcmp(experiment_ty
         % p1,p2,p3 for onsets 4;5
 
         [p1_45, po_p1_45] = load_postprocessed_data(main_path, n_participants, ...
-            onsets_4_5, partition1);
+            onsets_4_5, partition1, type_of_analysis);
         [p2_45, po_p2_45] = load_postprocessed_data(main_path, n_participants, ...
-            onsets_4_5, partition2);
+            onsets_4_5, partition2, type_of_analysis);
         [p3_45, po_p3_45] = load_postprocessed_data(main_path, n_participants, ...
-            onsets_4_5, partition3);
+            onsets_4_5, partition3, type_of_analysis);
 
         [p1_45_h, p1_45_l] = get_partitions_medium_split(p1_45, po_p1_45,...
             regression_type, 1, type_of_effect, weight_erps, weighting_factor);
@@ -3066,11 +2909,11 @@ elseif strcmp(experiment_type, 'partitions (no factor)') || strcmp(experiment_ty
 
         % p1,p2,p3 for onsets 6'7
         [p1_67, po_p1_67] = load_postprocessed_data(main_path, n_participants, ...
-            onsets_6_7, partition1);
+            onsets_6_7, partition1, type_of_analysis);
         [p2_67, po_p2_67] = load_postprocessed_data(main_path, n_participants, ...
-            onsets_6_7, partition2);
+            onsets_6_7, partition2, type_of_analysis);
         [p3_67, po_p3_67] = load_postprocessed_data(main_path, n_participants, ...
-            onsets_6_7, partition3);
+            onsets_6_7, partition3, type_of_analysis);
 
         [p1_67_h, p1_67_l] = get_partitions_medium_split(p1_67, po_p1_67,...
             regression_type, 1, type_of_effect, weight_erps, weighting_factor);
@@ -3102,12 +2945,12 @@ elseif strcmp(experiment_type, 'erps-23-45-67') || strcmp(experiment_type, 'erps
         partition.partition_number = 0;
 
         [data1, participant_order_1] = load_postprocessed_data(main_path, n_participants, ...
-            data_file23, partition);
+            data_file23, partition, type_of_analysis);
         e_idx = find(contains(data1{1}.label,peak_electrode));
         [data2, participant_order_2] = load_postprocessed_data(main_path, n_participants, ...
-            data_file45, partition);
+            data_file45, partition, type_of_analysis);
         [data3, participant_order_3] = load_postprocessed_data(main_path, n_participants, ...
-            data_file67, partition);
+            data_file67, partition, type_of_analysis);
 
 
         [data1_h, data1_l] = get_partitions_medium_split(data1, participant_order_1,...
@@ -3137,26 +2980,27 @@ elseif strcmp(experiment_type, 'erps-23-45-67') || strcmp(experiment_type, 'erps
         partition.partition_number = 0;
 
         [data1, participant_order1] = load_postprocessed_data(main_path, n_participants, ...
-            data_file23, partition);
+            data_file23, partition, type_of_analysis);
         e_idx = find(contains(data1{1}.label,peak_electrode));
         [data2, participant_order2] = load_postprocessed_data(main_path, n_participants, ...
-            data_file45, partition);
+            data_file45, partition, type_of_analysis);
         [data3, participant_order3] = load_postprocessed_data(main_path, n_participants, ...
-            data_file67, partition);
+            data_file67, partition, type_of_analysis);
 
-        p1_freq = to_frequency_data(data1, main_path, 1, ...
-            participant_order1, 'load', 'trial-level', foi, ...
-            'erp23_');
+        p1_freq = to_frequency_data(main_path, partition, ...
+            'load', 'trial-level', foi, ...
+            'erp23_', data_file23, n_participants, toi);
+
+        p2_freq = to_frequency_data(main_path, partition, ...
+            'load', 'trial-level', foi, ...
+            'erp45_', data_file45, n_participants, toi);
+
+        p3_freq = to_frequency_data(main_path, partition, ...
+            'load', 'trial-level', foi, ...
+            'erp67_', data_file67, n_participants, toi);
+
         data1 = format_for_plotting_functions(p1_freq);
-
-        p2_freq = to_frequency_data(data2, main_path, 2, ...
-            participant_order2, 'load', 'trial-level', foi, ...
-            'erp45_');
         data2 = format_for_plotting_functions(p2_freq);
-
-        p3_freq = to_frequency_data(data3, main_path, 3, ...
-            participant_order3, 'load', 'trial-level', foi, ...
-            'erp67_');
         data3 = format_for_plotting_functions(p3_freq);
 
         [data1_h, data1_l] = get_partitions_medium_split(data1, participant_order1,...
@@ -3223,9 +3067,12 @@ cohens_d = round((2*t_value)/sqrt(df),2);
 effect_size = round(sqrt((t_value*t_value)/((t_value*t_value)+df)),2);
 
 time = data{1}.time * 1000;
+peak_effect_plotting = peak_effect;
 peak_effect = peak_effect*1000;
 t_value = round(t_value, 2);
 cluster_size = round(cluster_size, 0);
+
+plot_line_width = 2;
 
 labels_text_size = 14;
 
@@ -3240,7 +3087,7 @@ if contains(experiment_type, 'onsets-2-8')
     time = data{1}.time * 1000;
     nexttile
     hold on;
-    plot(time, ci.dist_pgi_avg, 'color', 'm', 'LineWidth', 3.5,'DisplayName','PGI')
+    plot(time, ci.dist_pgi_avg, 'color', 'm', 'LineWidth', plot_line_width,'DisplayName','PGI')
     plot(time, ci.dist_pgi_high, 'LineWidth', 0.01, 'color', 'm','DisplayName','');
     plot(time, ci.dist_pgi_low, 'LineWidth', 0.001, 'color', 'm','DisplayName','');
     x2 = [time, fliplr(time)];
@@ -3263,16 +3110,21 @@ if contains(experiment_type, 'onsets-2-8')
     %ylh.Position(2) = 2.75;
     %ylh.Position(1) = -220;
 
+        % Shade the region before start_peak
+    xregion([-inf, start_peak], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+    
+    % Shade the region after end_peak
+    xregion([end_peak, inf], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
 
     nexttile
     hold on;
 
     plot(NaN(1), 'Color', '#0072BD');
     plot(NaN(1), 'Color', '#D95319');
-    plot(NaN(1), 'Color', '#FFFF00');
+    plot(NaN(1), 'Color', 'g');
     legend({'Thin', 'Medium', 'Thick'},'Location','bestoutside', 'FontSize', labels_text_size)
 
-    plot(time, ci.dist_thin_avg, 'Color', '#0072BD', 'LineWidth', 3.5, 'HandleVisibility','off')
+    plot(time, ci.dist_thin_avg, 'Color', '#0072BD', 'LineWidth', plot_line_width, 'HandleVisibility','off')
     plot(time, ci.dist_thin_high, 'LineWidth', 0.01, 'Color', '#0072BD','HandleVisibility','off');
     plot(time, ci.dist_thin_low, 'LineWidth', 0.01, 'color', '#0072BD','HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -3280,7 +3132,7 @@ if contains(experiment_type, 'onsets-2-8')
     h = fill(x2, inBetween, [0, 0.447, 0.741], 'HandleVisibility','off', 'LineStyle','none');
     set(h,'facealpha',.10)
 
-    plot(time, ci.dist_med_avg, 'color', '#D95319','LineWidth', 3.5, 'HandleVisibility','off');
+    plot(time, ci.dist_med_avg, 'color', '#D95319','LineWidth', plot_line_width, 'HandleVisibility','off');
     plot(time, ci.dist_med_high, 'LineWidth', 0.01, 'color', '#D95319','HandleVisibility','off');
     plot(time, ci.dist_med_low, 'LineWidth', 0.01, 'color', '#D95319','HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -3289,9 +3141,9 @@ if contains(experiment_type, 'onsets-2-8')
     set(h,'facealpha',.10)
 
 
-    plot(time, ci.dist_thick_avg, 'color', '#FFE600','LineWidth', 3.5, 'HandleVisibility','off');
-    plot(time, ci.dist_thick_high, 'LineWidth', 0.01, 'color', '#FFE600','HandleVisibility','off');
-    plot(time, ci.dist_thick_low, 'LineWidth', 0.01, 'color', '#FFE600','HandleVisibility','off');
+    plot(time, ci.dist_thick_avg, 'color', 'g','LineWidth', plot_line_width, 'HandleVisibility','off');
+    plot(time, ci.dist_thick_high, 'LineWidth', 0.01, 'color', 'g','HandleVisibility','off');
+    plot(time, ci.dist_thick_low, 'LineWidth', 0.01, 'color', 'g','HandleVisibility','off');
     x2 = [time, fliplr(time)];
     inBetween = [ci.dist_thick_high, fliplr(ci.dist_thick_low)];
     h = fill(x2, inBetween, [1,0.92,0], 'HandleVisibility','off', 'LineStyle','none');
@@ -3308,6 +3160,13 @@ if contains(experiment_type, 'onsets-2-8')
     max_y = max([max(ci.dist_thick_high), max(ci.dist_thin_high), max(ci.dist_med_high)])+0.5;
     ylim([min_y, max_y])
 
+            % Shade the region before start_peak
+    xregion([-inf, start_peak], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+    
+    % Shade the region after end_peak
+    xregion([end_peak, inf], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+
+
     %ylh = ylabel("Mean/Intercept", "FontSize",16, "Rotation", 0, 'HorizontalAlignment','right', "FontWeight", "bold");
     %ylh.Position(2) = 2.75;
     %ylh.Position(1) = -220;
@@ -3320,10 +3179,48 @@ if contains(experiment_type, 'onsets-2-8')
     hold off;
 
 elseif strcmp(experiment_type,'pure-factor-effect') || strcmp(experiment_type,'factor_effect')
-    strcmp(experiment_type,'pure-factor-effect')
-    t = tiledlayout(2,2, 'TileSpacing','Compact');
+    figure;
+    if plot_thin_med_thick        
+        % Row 1
+        pos1 = [0.05, 0.55, 0.35, 0.35];  % First plot (larger width)
+        pos2 = [0.425, 0.55, 0.15, 0.35];  % Second plot (half width)
+        pos3 = [0.6, 0.55, 0.35, 0.35];    % Third plot (larger width)
+        
+        % Row 2
+        pos4 = [0.05, 0.5, 0.35, 0.35];    % First plot (larger width)
+        pos5 = [0.425, 0.5, 0.15, 0.35];   % Second plot (half width)
+        pos6 = [0.6, 0.5, 0.35, 0.35];     % Third plot (larger width)
+    else
+            % Row 1
+        % Define the positions for the plots, keeping (2,1) and (2,3) empty
+    % Define the positions for the plots, keeping (2,1) and (2,3) empty
+    % Increasing width for pos1, pos3, pos4, and pos6
+    pos1 = [0.05, 0.6, 0.325, 0.25];   % Row 1, Col 1 (wider)
+    pos2 = [0.415, 0.6, 0.125, 0.25];  % Row 1, Col 2 (narrower)
+    pos3 = [0.57, 0.6, 0.325, 0.25];   % Row 1, Col 3 (wider)
+    
+    posMiddle = [0.415, 0.39, 0.125, 0.15]; % Row 2, Col 2 (centered and narrower)
+    
+    pos4 = [0.05, 0.1, 0.325, 0.25];   % Row 3, Col 1 (wider)
+    pos5 = [0.415, 0.1, 0.125, 0.25];  % Row 3, Col 2 (narrower)
+    pos6 = [0.57, 0.1, 0.325, 0.25];   % Row 3, Col 3 (wider)
+    end
+    
+    labels_text_size = 8;
+
+
+  
+    subplot(3,3,1);
+    set(gca, 'Position', pos1); % Adjust the size and position
     time = data{1}.time * 1000;
-    nexttile
+
+        % Shade the region before start_peak
+    xregion([-inf, start_peak], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+    
+    % Shade the region after end_peak
+    xregion([end_peak, inf], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+
+    line_plot_effect =140.00;
 
     hold on;
     %plot(NaN(1), 'r');
@@ -3334,7 +3231,7 @@ elseif strcmp(experiment_type,'pure-factor-effect') || strcmp(experiment_type,'f
     %end
 
     % low
-    plot(time, ci1_l.dist_pgi_avg, 'color', 'r', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, ci1_l.dist_pgi_avg, 'color', 'r', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, ci1_l.dist_pgi_high, 'LineWidth', 0.00001, 'color', 'r','HandleVisibility','off');
     plot(time, ci1_l.dist_pgi_low, 'LineWidth', 0.00001, 'color', 'r','HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -3345,7 +3242,7 @@ elseif strcmp(experiment_type,'pure-factor-effect') || strcmp(experiment_type,'f
     xlim(plotting_window);
 
     title("LOW",'FontSize', 18);
-    ylim([-6, 6])
+    ylim([-2, 6])
     grid on;
     hold off;
 
@@ -3353,6 +3250,7 @@ elseif strcmp(experiment_type,'pure-factor-effect') || strcmp(experiment_type,'f
         xline(start_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
         xline(end_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
         xline(peak_effect, '--r','HandleVisibility','off', "LineWidth", 1.5);
+         xline(line_plot_effect, '--','HandleVisibility','off', "LineWidth", 1.5);
         xline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
         yline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
     end
@@ -3360,21 +3258,65 @@ elseif strcmp(experiment_type,'pure-factor-effect') || strcmp(experiment_type,'f
     %xlabel("Milliseconds", "FontSize",labels_text_size)
     %ylabel(ax_label, "FontSize",labels_text_size)
 
-    ylh = ylabel("PGI", "FontSize",16, "Rotation", 0, 'HorizontalAlignment','right', "FontWeight", "bold");
-    ylh.Position(2) = 0.5;
+    ylh = ylabel("PGI", "FontSize",16, "Rotation", 90, 'HorizontalAlignment','right', "FontWeight", "bold");
+    ylh.Position(2) = 2;
     ylh.Position(1) = -220;
 
-    nexttile;
-
+    subplot(3,3,2);
+    set(gca, 'Position', pos2);
+    hold on;
     plot(NaN(1), 'r');
+    plot(NaN(1), 'k');
     if contains(experiment_type, 'partitions-2-8')
-        legend({'P1-PGI'},'Location','bestoutside','FontSize', labels_text_size)
+        legend({'P1-PGI'},'Location','northwest','FontSize', labels_text_size)
     elseif contains(experiment_type, 'pure-factor-effect')
-        legend({'PGI'},'Location','bestoutside','FontSize', labels_text_size)
+        legend({'PGI'},'Location','northwest','FontSize', labels_text_size)
     end
 
+    % interaction plot
+    [~, peak_effect_idx] = min(abs(data{1}.time - line_plot_effect/1000));
+    p1_high =  ci1_h.dist_pgi_avg(peak_effect_idx);
+    p1_low =  ci1_l.dist_pgi_avg(peak_effect_idx);
+
+    % thin thick average 
+     %p1_thin_high = ci1_h.dist_thin_avg(peak_effect_idx);
+     %p1_thick_high = ci1_h.dist_thick_avg(peak_effect_idx);
+     %p1_thin_low = ci1_l.dist_thin_avg(peak_effect_idx);
+     %p1_thick_low = ci1_l.dist_thick_avg(peak_effect_idx);
+
+    %mean_thin_thick_low = mean([p1_thin_low, p1_thick_low]);
+    %mean_thin_thick_high = mean([p1_thick_high, p1_thin_high]);
+
+    partitions_1 = [p1_low, p1_high];
+    %avg_thin_thick = [mean_thin_thick_low, mean_thin_thick_high];
+
+    plot(partitions_1, '-o','color', 'r' ,'LineWidth', plot_line_width,'HandleVisibility','off');
+    %plot(avg_thin_thick, '-o','color', 'k' ,'LineWidth', plot_line_width,'HandleVisibility','off');
+
+    title("LOW vs. HIGH",'FontSize', 18);
+
+    % Customize x-axis labels
+    xticks([1 2]);                 % Set x-tick positions
+    xticklabels({'LOW', 'HIGH'});   % Replace numeric x-ticks with custom labels
+    
+    % Remove x-axis numeric labels
+    set(gca, 'XTickLabelMode', 'manual', 'XTickMode', 'manual');
+      grid on;
+    % interaction plot end
+
+    subplot(3,3,3);
+    set(gca, 'Position', pos3);
     hold on;
-    plot(time, ci1_h.dist_pgi_avg, 'color', 'r', 'LineWidth', 3.5,'HandleVisibility','off');
+
+
+       % Shade the region before start_peak
+    xregion([-inf, start_peak], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+    
+    % Shade the region after end_peak
+    xregion([end_peak, inf], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+
+    hold on;
+    plot(time, ci1_h.dist_pgi_avg, 'color', 'r', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, ci1_h.dist_pgi_high, 'LineWidth', 0.00001, 'color', 'r','HandleVisibility','off');
     plot(time, ci1_h.dist_pgi_low, 'LineWidth', 0.00001, 'color', 'r','HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -3385,7 +3327,7 @@ elseif strcmp(experiment_type,'pure-factor-effect') || strcmp(experiment_type,'f
     xlim(plotting_window);
 
     title("HIGH",'FontSize', 18);
-    ylim([-6, 6])
+    ylim([-2, 6])
     grid on;
     hold off;
 
@@ -3393,23 +3335,68 @@ elseif strcmp(experiment_type,'pure-factor-effect') || strcmp(experiment_type,'f
         xline(start_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
         xline(end_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
         xline(peak_effect, '--r','HandleVisibility','off', "LineWidth", 1.5);
+        xline(line_plot_effect, '--','HandleVisibility','off', "LineWidth", 1.5);
         xline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
         yline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
     end
 
     %xlabel("Milliseconds", "FontSize",labels_text_size)
-    ylabel(ax_label, "FontSize",labels_text_size)
+   % ylabel(ax_label, "FontSize",labels_text_size)
 
+    %% subplot middle
+    subplot('position', posMiddle);
+     hold on;
+
+    plot(NaN(1), 'Color', '#D95319');
+    plot(NaN(1), 'Color', 'g');
+    if contains(experiment_type, 'partitions-2-8')
+        legend({'P1-PGI'},'Location','northwest','FontSize', labels_text_size)
+    elseif contains(experiment_type, 'pure-factor-effect')
+        legend({'Medium', 'Avg. (Thin, Thick)'},'Location','northwest','FontSize', labels_text_size)
+    end
+
+    [~, peak_effect_idx] = min(abs(data{1}.time - line_plot_effect/1000));
+    low_med =  ci1_l.dist_med_avg(peak_effect_idx);
+    
+    low_thin =  ci1_h.dist_thin_avg(peak_effect_idx);
+    low_thick =  ci1_l.dist_thick_avg(peak_effect_idx);
+    low_thin_thick_avg = mean([low_thin, low_thick]);
+
+    high_med =  ci1_h.dist_med_avg(peak_effect_idx);
+
+    high_thick =  ci1_h.dist_thick_avg(peak_effect_idx);
+    high_thin =  ci1_h.dist_thin_avg(peak_effect_idx);
+    high_thin_thick_avg = mean([high_thin, high_thick]);
+    
+    med = [low_med, high_med];
+    avg_thin_thick = [low_thin_thick_avg, high_thin_thick_avg];
+    
+
+    plot(med, '-o','color', '#D95319' ,'LineWidth', plot_line_width,'HandleVisibility','off');
+    plot(avg_thin_thick,  '-o','color', 'g' ,'LineWidth', plot_line_width,'HandleVisibility','off');
+
+
+    % Customize x-axis labels
+    xticks([1 2]);                 % Set x-tick positions
+    %xticklabels({'LOW', 'HIGH'});   % Replace numeric x-ticks with custom labels
+    
+    % Remove x-axis numeric labels
+    set(gca, 'XTickLabelMode', 'manual', 'XTickMode', 'manual');
+    grid on;
+
+
+    %% subplot middle
 
     % low med etc
-    nexttile
+    subplot(3, 3, 7);
+    set(gca, 'Position', pos4);
     hold on;
     %plot(NaN(1), 'Color', '#0072BD');
     %plot(NaN(1), 'Color', '#D95319');
     %plot(NaN(1), 'Color', '#FFFF00');
     %legend({'Thin', 'Medium', 'Thick'},'Location','bestoutside','FontSize', labels_text_size)
 
-    plot(time, ci1_l.dist_thin_avg, 'color', '#0072BD', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, ci1_l.dist_thin_avg, 'color', '#0072BD', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, ci1_l.dist_thin_high, 'LineWidth', 0.01, 'color', '#0072BD','HandleVisibility','off');
     plot(time, ci1_l.dist_thin_low, 'LineWidth', 0.01, 'color', '#0072BD','HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -3417,7 +3404,7 @@ elseif strcmp(experiment_type,'pure-factor-effect') || strcmp(experiment_type,'f
     h = fill(x2, inBetween, [0, 0.447, 0.741], 'HandleVisibility','off', 'LineStyle','none');
     set(h,'facealpha',.10)
 
-    plot(time, ci1_l.dist_med_avg, 'color', '#D95319', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, ci1_l.dist_med_avg, 'color', '#D95319', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, ci1_l.dist_med_high, 'LineWidth', 0.01, 'color', '#D95319','HandleVisibility','off');
     plot(time, ci1_l.dist_med_low, 'LineWidth', 0.01, 'color', '#D95319','HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -3425,17 +3412,17 @@ elseif strcmp(experiment_type,'pure-factor-effect') || strcmp(experiment_type,'f
     h = fill(x2, inBetween, [0.851, 0.325, 0.098], 'HandleVisibility','off', 'LineStyle','none');
     set(h,'facealpha',.10)
 
-    plot(time, ci1_l.dist_thick_avg, 'color', '#FCD200', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, ci1_l.dist_thick_avg, 'color', '#FCD200', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, ci1_l.dist_thick_high, 'LineWidth', 0.01, 'color', '#FCD200','HandleVisibility','off');
     plot(time, ci1_l.dist_thick_low, 'LineWidth', 0.01, 'color', '#FCD200','HandleVisibility','off');
-    x2 = [time, fliplr(time)];
+   x2 = [time, fliplr(time)];
     inBetween = [ci1_l.dist_thick_high, fliplr(ci1_l.dist_thick_low)];
     h = fill(x2, inBetween, [1,0.92,0], 'HandleVisibility','off', 'LineStyle','none');
     set(h,'facealpha',.175)
 
     xlim(plotting_window);
 
-    ylim([-5.5, 8.5])
+    ylim([-2, 8.5])
     grid on;
     hold off;
 
@@ -3443,25 +3430,64 @@ elseif strcmp(experiment_type,'pure-factor-effect') || strcmp(experiment_type,'f
         xline(start_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
         xline(end_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
         xline(peak_effect, '--r','HandleVisibility','off', "LineWidth", 1.5);
+        xline(line_plot_effect, '--','HandleVisibility','off', "LineWidth", 1.5);
         xline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
         yline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
     end
 
-    xlabel("Milliseconds", "FontSize",labels_text_size)
+    %xlabel("Milliseconds", "FontSize",labels_text_size)
     %ylabel(ax_label, "FontSize",labels_text_size)
-    ylh = ylabel("Medium", "FontSize",16, "Rotation", 0, 'HorizontalAlignment','right', "FontWeight", "bold");
-    ylh.Position(2) = 1.8;
+    ylh = ylabel("Amplitude", "FontSize",16, "Rotation", 90, 'HorizontalAlignment','right', "FontWeight", "bold");
+    ylh.Position(2) = 3.5;
     ylh.Position(1) = -220;
 
+    % Shade the region before start_peak
+    xregion([-inf, start_peak], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+    
+    % Shade the region after end_peak
+    xregion([end_peak, inf], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+
+
     % high med etc
-    nexttile
-    hold on;
+    subplot(3,3, 8);
+set(gca, 'Position', pos5); % Adjust the size and position
+     hold on;
+    [~, peak_effect_idx] = min(abs(data{1}.time - line_plot_effect/1000));
+    low_thick =  ci1_l.dist_thick_avg(peak_effect_idx);
+    low_med =  ci1_l.dist_med_avg(peak_effect_idx);
+    low_thin =  ci1_h.dist_thin_avg(peak_effect_idx);
+    high_thick =  ci1_h.dist_thick_avg(peak_effect_idx);
+    high_med =  ci1_h.dist_med_avg(peak_effect_idx);
+    high_thin =  ci1_h.dist_thin_avg(peak_effect_idx);
+    
+    thick = [low_thick, high_thick];
+    med = [low_med, high_med];
+    thin = [low_thin, high_thin];
+
+    plot(thick, '-o','color', '#FCD200' ,'LineWidth', plot_line_width,'HandleVisibility','off');
+    plot(thin,  '-o','color', '#0072BD' ,'LineWidth', plot_line_width,'HandleVisibility','off');
+    plot(med, '-o','color',  '#D95319','LineWidth', plot_line_width,'HandleVisibility','off');
+    
     plot(NaN(1), 'Color', '#0072BD');
     plot(NaN(1), 'Color', '#D95319');
     plot(NaN(1), 'Color', '#FFFF00');
-    legend({'Thin', 'Medium', 'Thick'},'Location','bestoutside','FontSize', labels_text_size)
+    %plot(NaN(1), 'Color', 'k');
+    legend({'Thin', 'Medium', 'Thick'},'Location','northwest','FontSize', labels_text_size)
+    
 
-    plot(time, ci1_h.dist_thin_avg, 'color', '#0072BD', 'LineWidth', 3.5,'HandleVisibility','off');
+    % Customize x-axis labels
+    xticks([1 2]);                 % Set x-tick positions
+    xticklabels({'LOW', 'HIGH'});   % Replace numeric x-ticks with custom labels
+    
+    % Remove x-axis numeric labels
+    set(gca, 'XTickLabelMode', 'manual', 'XTickMode', 'manual');
+    grid on;
+
+    subplot(3,3,9);
+set(gca, 'Position', pos6); % Adjust the size and position
+        hold on;
+    
+    plot(time, ci1_h.dist_thin_avg, 'color', '#0072BD', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, ci1_h.dist_thin_high, 'LineWidth', 0.01, 'color', '#0072BD','HandleVisibility','off');
     plot(time, ci1_h.dist_thin_low, 'LineWidth', 0.01, 'color', '#0072BD','HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -3469,7 +3495,7 @@ elseif strcmp(experiment_type,'pure-factor-effect') || strcmp(experiment_type,'f
     h = fill(x2, inBetween, [0, 0.447, 0.741], 'HandleVisibility','off', 'LineStyle','none');
     set(h,'facealpha',.10)
 
-    plot(time, ci1_h.dist_med_avg, 'color', '#D95319', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, ci1_h.dist_med_avg, 'color', '#D95319', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, ci1_h.dist_med_high, 'LineWidth', 0.01, 'color', '#D95319','HandleVisibility','off');
     plot(time, ci1_h.dist_med_low, 'LineWidth', 0.01, 'color', '#D95319','HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -3477,7 +3503,7 @@ elseif strcmp(experiment_type,'pure-factor-effect') || strcmp(experiment_type,'f
     h = fill(x2, inBetween, [0.851, 0.325, 0.098], 'HandleVisibility','off', 'LineStyle','none');
     set(h,'facealpha',.10)
 
-    plot(time, ci1_h.dist_thick_avg, 'color', '#FCD200', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, ci1_h.dist_thick_avg, 'color', '#FCD200', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, ci1_h.dist_thick_high, 'LineWidth', 0.01, 'color', '#FCD200','HandleVisibility','off');
     plot(time, ci1_h.dist_thick_low, 'LineWidth', 0.01, 'color', '#FCD200','HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -3487,7 +3513,7 @@ elseif strcmp(experiment_type,'pure-factor-effect') || strcmp(experiment_type,'f
 
     xlim(plotting_window);
 
-    ylim([-5.5, 8.5])
+    ylim([-2, 8.5])
     grid on;
     hold off;
 
@@ -3495,23 +3521,101 @@ elseif strcmp(experiment_type,'pure-factor-effect') || strcmp(experiment_type,'f
         xline(start_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
         xline(end_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
         xline(peak_effect, '--r','HandleVisibility','off', "LineWidth", 1.5);
+        xline(line_plot_effect, '--','HandleVisibility','off', "LineWidth", 1.5);
         xline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
         yline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
     end
 
-    xlabel("Milliseconds", "FontSize",labels_text_size)
-    ylabel(ax_label, "FontSize",labels_text_size)
+    %ylabel(ax_label, "FontSize",labels_text_size)
+
+    % Shade the region before start_peak
+    xregion([-inf, start_peak], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+    
+    % Shade the region after end_peak
+    xregion([end_peak, inf], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+
+
+    %xlabel("Milliseconds", "FontSize",labels_text_size)
+    %ylabel(ax_label, "FontSize",labels_text_size)
 
 
 
 
 elseif strcmp(experiment_type, 'three-way-interaction')
+    disp("....")
+    figure;
+
+    if strcmp(regression_type, "Visual Stress") 
+        line_plot_effect = 226;
+    elseif strcmp(regression_type, "Headache")
+         line_plot_effect = 135;
+    elseif strcmp(regression_type, "Discomfort")
+        line_plot_effect = 200;
+        end
+
+
+    
+    plot_thin_med_thick = 1;
+    if plot_thin_med_thick
+% Row 1 (with center plot)
+pos1 = [0.1, 0.78, 0.3, 0.12];          % 0.1, 0.8, 0.3, 0.12
+posMiddle1 = [0.4, 0.65, 0.2, 0.25];  % Center plot, aligned with Rows 1 & 2
+posMiddle1 = [0.42, 0.65, 0.16, 0.25];
+pos3 = [0.6, 0.78, 0.3, 0.12];          % Row 1, Col 3 (wider to the left)
+
+% Row 2 (no center plot)
+pos4 = [0.1, 0.65, 0.3, 0.12];         % Row 2, Col 1 (wider to the right)
+pos5 = [0.6, 0.65, 0.3, 0.12];         % Row 2, Col 3 (wider to the left)
+
+% Row 3 (with center plot)
+pos6 = [0.1, 0.48, 0.3, 0.12];          % Row 3, Col 1 (wider to the right)
+posMiddle3 = [0.4, 0.35, 0.2, 0.25];  % Center plot, aligned with Rows 3 & 4
+posMiddle3 = [0.42, 0.35, 0.16, 0.25];  % Center plot, aligned with Rows 3 & 4
+pos7 = [0.6, 0.48, 0.3, 0.12];          % Row 3, Col 3 (wider to the left)
+
+% Row 4 (no center plot)
+pos8 = [0.1, 0.35, 0.3, 0.12];         % Row 4, Col 1 (wider to the right)
+pos9 = [0.6, 0.35, 0.3, 0.12];         % Row 4, Col 3 (wider to the left)
+
+% Row 5 (with center plot)
+pos10 = [0.1, 0.18, 0.3, 0.12];         % Row 5, Col 1 (wider to the right)
+posMiddle5 = [0.4, 0.05, 0.2, 0.25];  % Center plot, aligned with Rows 5 & 6
+posMiddle5 = [0.42, 0.05, 0.16, 0.25];  % Center plot, aligned with Rows 5 & 6
+pos11 = [0.6, 0.18, 0.3, 0.12];         % Row 5, Col 3 (wider to the left)
+
+% Row 6 (no center plot)
+pos12 = [0.1, 0.05, 0.3, 0.12];        % Row 6, Col 1 (wider to the right)
+pos13 = [0.6, 0.05, 0.3, 0.12];        % Row 6, Col 3 (wider to the left)
+
+        % subplot("Position", pos1);
+        % subplot("Position", posMiddle1);
+        % subplot("Position", pos3);
+        % subplot("Position", pos4);
+        % subplot("Position", pos5);
+        % subplot("Position", pos6);
+        % subplot("Position", posMiddle3);
+        % subplot("Position", pos7);
+        % subplot("Position", pos8);
+        % subplot("Position", pos9);
+        % subplot("Position", pos10);
+        % subplot("Position", posMiddle5);
+        % subplot("Position", pos11);
+        % subplot("Position", pos12);
+        % subplot("Position", pos13);
+    end
+
+    
+    labels_text_size = 8;
     t = tiledlayout(6,2, 'TileSpacing','Compact');
     time = data{1}.time * 1000;
 
-    %%%%%%% PARTITION 1
+    
+    %% %%%%% PARTITION 1 LOW PANEL PGI
     % onsets 2;3, 4;5 6,7 for P1 low
-    nexttile
+    %subplot(6, 3,1);
+    subplot("Position", pos1)
+    set(gca, 'XTick', []);
+    %set(gca, 'Position', pos1); % Adjust the size and position
     hold on;
     %plot(NaN(1), 'Color', 'r');
     %plot(NaN(1), 'Color', 'g');
@@ -3519,7 +3623,7 @@ elseif strcmp(experiment_type, 'three-way-interaction')
     %legend({'Onsets 2,3', 'Onsets 4,5', 'Onsets 6,7'},'Location','bestoutside','FontSize', labels_text_size)
 
         % onsets 2;3 p1
-    plot(time, p1_23_l.dist_pgi_avg, 'color', 'r', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, p1_23_l.dist_pgi_avg, 'color', 'r', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, p1_23_l.dist_pgi_high, 'color', 'r', 'LineWidth', 0.00001,'HandleVisibility','off');
     plot(time, p1_23_l.dist_pgi_low, 'color', 'r', 'LineWidth', 0.00001,'HandleVisibility','off');
      x2 = [time, fliplr(time)];
@@ -3527,7 +3631,7 @@ elseif strcmp(experiment_type, 'three-way-interaction')
      h = fill(x2, inBetween, 'r', 'HandleVisibility','off', 'LineStyle','none');     set(h,'facealpha',.10)
 
         % onsets 4,5 p1 
-    plot(time, p1_45_l.dist_pgi_avg, 'color', 'g', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, p1_45_l.dist_pgi_avg, 'color', 'g', 'LineWidth', plot_line_width,'HandleVisibility','off');
      plot(time, p1_45_l.dist_pgi_high, 'color', 'g', 'LineWidth', 0.00001,'HandleVisibility','off');
      plot(time, p1_45_l.dist_pgi_low, 'color', 'g', 'LineWidth', 0.00001,'HandleVisibility','off');
      x2 = [time, fliplr(time)];
@@ -3536,7 +3640,7 @@ elseif strcmp(experiment_type, 'three-way-interaction')
      set(h,'facealpha',.10)  
 
         % onsets 6;7 p3
-    plot(time, p1_67_l.dist_pgi_avg, 'color', 'b', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, p1_67_l.dist_pgi_avg, 'color', 'b', 'LineWidth', plot_line_width,'HandleVisibility','off');
      plot(time, p1_67_l.dist_pgi_high, 'color', 'b', 'LineWidth', 0.00001,'HandleVisibility','off');
      plot(time, p1_67_l.dist_pgi_low, 'color', 'b', 'LineWidth', 0.00001,'HandleVisibility','off');
      x2 = [time, fliplr(time)];
@@ -3553,35 +3657,76 @@ elseif strcmp(experiment_type, 'three-way-interaction')
     xline(start_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
     xline(end_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
     xline(peak_effect, '--r','HandleVisibility','off', "LineWidth", 1.5);
+    xline(line_plot_effect, '--','HandleVisibility','off', "LineWidth", 1.5);
     xline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
     yline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
 
 
     %xlabel("Milliseconds", "FontSize",labels_text_size)
     %ylabel(ax_label, "FontSize",labels_text_size)
-    ylh = ylabel("PGI", "FontSize",16, "Rotation", 0, 'HorizontalAlignment','right', "FontWeight", "bold");
-    ylh.Position(2) = 2.75;
+    ylh = ylabel("P1 - PGI", "FontSize",12, "Rotation", 90, 'HorizontalAlignment','right', "FontWeight", "bold");
+    ylh.Position(2) = 10;
     ylh.Position(1) = -220;
 
     %yyaxis right
     %yticks([])
     %ylabel(ax_label, "FontSize",labels_text_size, 'Color', 'black')
 
+    % Shade the region before start_peak
+    xregion([-inf, start_peak], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
     
-    %%%%%%%
+    % Shade the region after end_peak
+    xregion([end_peak, inf], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
 
-    %%%%%%%
-    % onsets 2;3, 4;5 6,7 for P1 high
-    set(gca,'Color',[.85,.85,.85])
-    nexttile
+    set(gca, 'XTick', []);
+    
+    %% %%%%% PARTITION 1 INTERACTION PANEL PGI
+    subplot("Position", posMiddle1);
+    hold on;
+    
+    % Find the index of the peak effect for plotting
+    [~, peak_effect_idx] = min(abs(data{1}.time - line_plot_effect / 1000));
+    
+    % Extract data values
+    p1_23_low = p1_23_l.dist_pgi_avg(peak_effect_idx);
+    p1_23_high = p1_23_h.dist_pgi_avg(peak_effect_idx);
+    p1_45_low = p1_45_l.dist_pgi_avg(peak_effect_idx);
+    p1_45_high = p1_45_h.dist_pgi_avg(peak_effect_idx);
+    p1_67_low = p1_67_l.dist_pgi_avg(peak_effect_idx);
+    p1_67_high = p1_67_h.dist_pgi_avg(peak_effect_idx);
+
+    % Data for partitions
+    partitions_1 = [p1_23_low, p1_23_high];
+    partitions_2 = [p1_45_low, p1_45_high];
+    partitions_3 = [p1_67_low, p1_67_high];
+    
+    % Plot each partition with different colors
+    plot(partitions_1, '-o', 'Color', 'r', 'LineWidth', plot_line_width, 'HandleVisibility', 'off');
+    plot(partitions_2, '-o', 'Color', 'g', 'LineWidth', plot_line_width, 'HandleVisibility', 'off');
+    plot(partitions_3, '-o', 'Color', 'b', 'LineWidth', plot_line_width, 'HandleVisibility', 'off');
+    
+    % Customize grid and axis settings
+    grid on;                           % Enable gridlines
+    set(gca, 'XTick', []); % Disable ticks
+    
+    % Set y-axis limits
+    ylim([-1, 4]);
+    
+    % Title
+    title("P1 - LOW vs. HIGH", 'FontSize', 18);
+    %% %%%%% PARTITION 1 HIGH PANEL PGI
+   % subplot(6, 3,3);
+    %set(gca, 'Position', pos3); % Adjust the size and position
+    subplot("Position", pos3)
+    set(gca, 'YTick', []);
     hold on;
     plot(NaN(1), 'Color', 'r');
     plot(NaN(1), 'Color', 'g');
     plot(NaN(1), 'Color', 'b');
-    legend({'Onsets 2,3', 'Onsets 4,5', 'Onsets 6,7'},'Location','bestoutside','FontSize', labels_text_size)
+    legend({'Onsets 2,3', 'Onsets 4,5', 'Onsets 6,7'},'Location','northwest','FontSize', labels_text_size)
 
         % onsets 2;3 p1
-    plot(time, p1_23_h.dist_pgi_avg, 'color', 'r', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, p1_23_h.dist_pgi_avg, 'color', 'r', 'LineWidth', plot_line_width,'HandleVisibility','off');
      plot(time, p1_23_h.dist_pgi_high, 'color', 'r', 'LineWidth', 0.00001,'HandleVisibility','off');
      plot(time, p1_23_h.dist_pgi_low, 'color', 'r', 'LineWidth', 0.00001,'HandleVisibility','off');
      x2 = [time, fliplr(time)];
@@ -3590,7 +3735,7 @@ elseif strcmp(experiment_type, 'three-way-interaction')
      set(h,'facealpha',.10)
 
         % onsets 4,5 p1 
-    plot(time, p1_45_h.dist_pgi_avg, 'color', 'g', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, p1_45_h.dist_pgi_avg, 'color', 'g', 'LineWidth', plot_line_width,'HandleVisibility','off');
      plot(time, p1_45_h.dist_pgi_high, 'color', 'g', 'LineWidth', 0.00001,'HandleVisibility','off');
      plot(time, p1_45_h.dist_pgi_low, 'color', 'g', 'LineWidth', 0.00001,'HandleVisibility','off');
      x2 = [time, fliplr(time)];
@@ -3599,7 +3744,7 @@ elseif strcmp(experiment_type, 'three-way-interaction')
      set(h,'facealpha',.10)  
 
         % onsets 6;7 p3
-    plot(time, p1_67_h.dist_pgi_avg, 'color', 'b', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, p1_67_h.dist_pgi_avg, 'color', 'b', 'LineWidth', plot_line_width,'HandleVisibility','off');
      plot(time, p1_67_h.dist_pgi_high, 'color', 'b', 'LineWidth', 0.00001,'HandleVisibility','off');
      plot(time, p1_67_h.dist_pgi_low, 'color', 'b', 'LineWidth', 0.00001,'HandleVisibility','off');
      x2 = [time, fliplr(time)];
@@ -3616,16 +3761,24 @@ elseif strcmp(experiment_type, 'three-way-interaction')
     xline(start_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
     xline(end_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
     xline(peak_effect, '--r','HandleVisibility','off', "LineWidth", 1.5);
+    xline(line_plot_effect, '--','HandleVisibility','off', "LineWidth", 1.5);
     xline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
     yline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
 
     %xlabel("Milliseconds", "FontSize",labels_text_size)
     %ylabel(ax_label, "FontSize",labels_text_size)
 
-    %%%%%%%
-    % onsets 2;3, 4;5 6,7 for P1 medium low
-    set(gca,'Color',[.85,.85,.85])
-    nexttile
+    % Shade the region before start_peak
+    xregion([-inf, start_peak], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+    
+    % Shade the region after end_peak
+    xregion([end_peak, inf], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+
+    set(gca, 'XTick', []);
+    %% %%%%% PARTITION 1 LOW PANEL MEDIUM
+    %subplot(6, 3,4);
+    %set(gca, 'Position', pos4); % Adjust the size and position
+    subplot("Position", pos4);
     hold on;
     %plot(NaN(1), 'Color', 'r');
     %plot(NaN(1), 'Color', 'g');
@@ -3633,7 +3786,7 @@ elseif strcmp(experiment_type, 'three-way-interaction')
     %legend({'Onsets 2,3', 'Onsets 4,5', 'Onsets 6,7'},'Location','bestoutside','FontSize', labels_text_size)
 
         % onsets 2;3 p1
-    plot(time, p1_23_l.dist_med_avg, 'color', 'r', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, p1_23_l.dist_med_avg, 'color', 'r', 'LineWidth', plot_line_width,'HandleVisibility','off');
      plot(time, p1_23_l.dist_med_high, 'color', 'r', 'LineWidth', 0.00001,'HandleVisibility','off');
      plot(time, p1_23_l.dist_med_low, 'color', 'r', 'LineWidth', 0.00001,'HandleVisibility','off');
      x2 = [time, fliplr(time)];
@@ -3642,7 +3795,7 @@ elseif strcmp(experiment_type, 'three-way-interaction')
      set(h,'facealpha',.10)
 
         % onsets 4,5 p1 
-    plot(time, p1_45_l.dist_med_avg, 'color', 'g', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, p1_45_l.dist_med_avg, 'color', 'g', 'LineWidth', plot_line_width,'HandleVisibility','off');
      plot(time, p1_45_l.dist_med_high, 'color', 'g', 'LineWidth', 0.00001,'HandleVisibility','off');
      plot(time, p1_45_l.dist_med_low, 'color', 'g', 'LineWidth', 0.00001,'HandleVisibility','off');
      x2 = [time, fliplr(time)];
@@ -3651,7 +3804,7 @@ elseif strcmp(experiment_type, 'three-way-interaction')
     set(h,'facealpha',.10)  
 
         % onsets 6;7 p3
-    plot(time, p1_67_l.dist_med_avg, 'color', 'b', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, p1_67_l.dist_med_avg, 'color', 'b', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, p1_67_l.dist_med_high, 'color', 'b', 'LineWidth', 0.00001,'HandleVisibility','off');
     plot(time, p1_67_l.dist_med_low, 'color', 'b', 'LineWidth', 0.00001,'HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -3673,8 +3826,8 @@ elseif strcmp(experiment_type, 'three-way-interaction')
 
     %xlabel("Milliseconds", "FontSize",labels_text_size)
     %ylabel(ax_label, "FontSize",labels_text_size)
-    ylh = ylabel("Medium", "FontSize",16, "Rotation", 0, 'HorizontalAlignment','right', "FontWeight", "bold");
-    ylh.Position(2) = 2.75;
+    ylh = ylabel("P1 - Medium", "FontSize",12, "Rotation", 90, 'HorizontalAlignment','right', "FontWeight", "bold");
+    ylh.Position(2) =12;
     ylh.Position(1) = -220;
 
     %yyaxis right
@@ -3684,15 +3837,26 @@ elseif strcmp(experiment_type, 'three-way-interaction')
     %%%%%%%
     % onsets 2;3, 4;5 6,7 for P1 medium high
     %set(gca,'Color',[.85,.85,.85])
-    nexttile
+        % Shade the region before start_peak
+    % Shade the region before start_peak
+    xregion([-inf, start_peak], 'FaceColor', [0.45 0.45 0.45], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+    
+    % Shade the region after end_peak
+    xregion([end_peak, inf], 'FaceColor', [0.45 0.45 0.45], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+
+    %% %%%%% PARTITION 1 HIGH PANEL MEDIUM
+    %subplot(6, 3,5);
+    %set(gca, 'Position', pos5); % Adjust the size and position
+    subplot("Position", pos5);
+    set(gca, 'YTick', []);
     hold on;
     plot(NaN(1), 'Color', 'r');
     plot(NaN(1), 'Color', 'g');
     plot(NaN(1), 'Color', 'b');
-    legend({'Onsets 2,3', 'Onsets 4,5', 'Onsets 6,7'},'Location','bestoutside','FontSize', labels_text_size)
+    legend({'Onsets 2,3', 'Onsets 4,5', 'Onsets 6,7'},'Location','northwest','FontSize', labels_text_size)
 
         % onsets 2;3 p1
-    plot(time, p1_23_h.dist_med_avg, 'color', 'r', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, p1_23_h.dist_med_avg, 'color', 'r', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, p1_23_h.dist_med_high, 'color', 'r', 'LineWidth', 0.00001,'HandleVisibility','off');
     plot(time, p1_23_h.dist_med_low, 'color', 'r', 'LineWidth', 0.00001,'HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -3701,7 +3865,7 @@ elseif strcmp(experiment_type, 'three-way-interaction')
     set(h,'facealpha',.10)
 
         % onsets 4,5 p1 
-    plot(time, p1_45_h.dist_med_avg, 'color', 'g', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, p1_45_h.dist_med_avg, 'color', 'g', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, p1_45_h.dist_med_high, 'color', 'g', 'LineWidth', 0.00001,'HandleVisibility','off');
     plot(time, p1_45_h.dist_med_low, 'color', 'g', 'LineWidth', 0.00001,'HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -3710,7 +3874,7 @@ elseif strcmp(experiment_type, 'three-way-interaction')
     set(h,'facealpha',.10)  
 
         % onsets 6;7 p3
-    plot(time, p1_67_h.dist_med_avg, 'color', 'b', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, p1_67_h.dist_med_avg, 'color', 'b', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, p1_67_h.dist_med_high, 'color', 'b', 'LineWidth', 0.00001,'HandleVisibility','off');
     plot(time, p1_67_h.dist_med_low, 'color', 'b', 'LineWidth', 0.00001,'HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -3719,7 +3883,7 @@ elseif strcmp(experiment_type, 'three-way-interaction')
     set(h,'facealpha',.10) 
 
     xlim(plotting_window);
-    ylim([-4, 12])
+    ylim([-2, 8.5])
     grid on;
     %title("Medium","FontSize", 13)
     hold off;
@@ -3732,21 +3896,25 @@ elseif strcmp(experiment_type, 'three-way-interaction')
 
     %xlabel("Milliseconds", "FontSize",labels_text_size)
     %ylabel(ax_label, "FontSize",labels_text_size)
-
-    %%%%%%% PARTITION 1
-
-    %%%%%%% PARTITION 2
-    % onsets 2;3, 4;5 6,7 for P2 low
-    nexttile
-    set(gca,'Color',[.85,.85,.85])
+    xregion([-inf, start_peak], 'FaceColor', [0.45 0.45 0.45], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+    
+    % Shade the region after end_peak
+    xregion([end_peak, inf], 'FaceColor', [0.45 0.45 0.45], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+    
+    %% %%%%% PARTITION 2 LOW PANEL PGI
+    %subplot(6, 3,6);
+    %set(gca, 'Position', pos6); % Adjust the size and position
+    subplot("Position", pos6);
+    set(gca, 'XTick', []);
     hold on;
+
     %plot(NaN(1), 'Color', 'r');
     %plot(NaN(1), 'Color', 'g');
     %plot(NaN(1), 'Color', 'b');
     %legend({'Onsets 2,3', 'Onsets 4,5', 'Onsets 6,7'},'Location','bestoutside','FontSize', labels_text_size)
 
         % onsets 2;3 p1
-    plot(time, p2_23_l.dist_pgi_avg, 'color', 'r', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, p2_23_l.dist_pgi_avg, 'color', 'r', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, p2_23_l.dist_pgi_high, 'color', 'r', 'LineWidth', 0.00001,'HandleVisibility','off');
     plot(time, p2_23_l.dist_pgi_low, 'color', 'r', 'LineWidth', 0.00001,'HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -3755,7 +3923,7 @@ elseif strcmp(experiment_type, 'three-way-interaction')
     set(h,'facealpha',.10)
 
         % onsets 4,5 p1 
-    plot(time, p2_45_l.dist_pgi_avg, 'color', 'g', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, p2_45_l.dist_pgi_avg, 'color', 'g', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, p2_45_l.dist_pgi_high, 'color', 'g', 'LineWidth', 0.00001,'HandleVisibility','off');
     plot(time, p2_45_l.dist_pgi_low, 'color', 'g', 'LineWidth', 0.00001,'HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -3764,7 +3932,7 @@ elseif strcmp(experiment_type, 'three-way-interaction')
     set(h,'facealpha',.10)  
 
         % onsets 6;7 p3
-    plot(time, p2_67_l.dist_pgi_avg, 'color', 'b', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, p2_67_l.dist_pgi_avg, 'color', 'b', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, p2_67_l.dist_pgi_high, 'color', 'b', 'LineWidth', 0.00001,'HandleVisibility','off');
     plot(time, p2_67_l.dist_pgi_low, 'color', 'b', 'LineWidth', 0.00001,'HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -3781,13 +3949,14 @@ elseif strcmp(experiment_type, 'three-way-interaction')
     xline(start_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
     xline(end_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
     xline(peak_effect, '--r','HandleVisibility','off', "LineWidth", 1.5);
+    xline(line_plot_effect, '--','HandleVisibility','off', "LineWidth", 1.5);
     xline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
     yline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
 
     %xlabel("Milliseconds", "FontSize",labels_text_size)
     %ylabel(ax_label, "FontSize",labels_text_size)
-    ylh = ylabel("PGI", "FontSize",16, "Rotation", 0, 'HorizontalAlignment','right', "FontWeight", "bold");
-    ylh.Position(2) = 2.75;
+    ylh = ylabel("P2 - PGI", "FontSize",12, "Rotation", 90, 'HorizontalAlignment','right', "FontWeight", "bold");
+    ylh.Position(2) = 10;
     ylh.Position(1) = -220;
 
     %yyaxis right
@@ -3795,20 +3964,64 @@ elseif strcmp(experiment_type, 'three-way-interaction')
     %ylabel(ax_label, "FontSize",labels_text_size, 'Color', 'black')
     
     %%%%%%%
+    xregion([-inf, start_peak], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
     
-    %%%%%%% PARTITION 2
+    % Shade the region after end_peak
+    xregion([end_peak, inf], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+
+    set(gca, 'XTick', []);
+        %% %%%%% PARTITION 2 INTERACTION PANEL PGI
+     %subplot(6, 3,7);
+    %set(gca, 'Position', posMiddle3); % Adjust the size and position
+    subplot("Position", posMiddle3);
+    grid on;
+    [~, peak_effect_idx] = min(abs(data{1}.time - line_plot_effect/1000));
+
+    p1_23_low = p2_23_l.dist_pgi_avg(peak_effect_idx);
+    p1_23_high = p2_23_h.dist_pgi_avg(peak_effect_idx);
+    
+    p1_45_low = p2_45_l.dist_pgi_avg(peak_effect_idx);
+    p1_45_high = p2_45_h.dist_pgi_avg(peak_effect_idx);
+
+    p1_67_low = p2_67_l.dist_pgi_avg(peak_effect_idx);
+    p1_67_high = p2_67_h.dist_pgi_avg(peak_effect_idx);
+
+    hold on;
+
+    partitions_1 = [p1_23_low, p1_23_high];
+    partitions_2 = [p1_45_low, p1_45_high];
+    partitions_3 = [p1_67_low, p1_67_high];
+
+    plot(partitions_1, '-o','color', 'r' ,'LineWidth', plot_line_width,'HandleVisibility','off');
+    plot(partitions_2,  '-o','color', 'g' ,'LineWidth', plot_line_width,'HandleVisibility','off');
+    plot(partitions_3, '-o','color','b','LineWidth', plot_line_width,'HandleVisibility','off');
+    
+    % Customize grid and axis settings
+    grid on;                           % Enable gridlines
+    set(gca, 'XTick', []); % Disable ticks
+    
+    % Set y-axis limits
+    ylim([-1, 4]);
+    
+    % Title
+    title("P2 - LOW vs. HIGH",'FontSize', 18);
+
+    %% %%%%% PARTITION 2 HIGH PANEL PGI
     % onsets 2;3, 4;5 6,7 for P2 high
-    nexttile
-    set(gca,'Color',[.85,.85,.85])
+    %subplot(6, 3,8);
+    %set(gca, 'Position', pos7); % Adjust the size and position
+    subplot("Position", pos7);
+    set(gca, 'XTick', []);
+    set(gca, 'YTick', []);
     hold on;
     plot(NaN(1), 'Color', 'r');
     plot(NaN(1), 'Color', 'g');
     plot(NaN(1), 'Color', 'b');
-    legend({'Onsets 2,3', 'Onsets 4,5', 'Onsets 6,7'},'Location','bestoutside','FontSize', labels_text_size)
+    legend({'Onsets 2,3', 'Onsets 4,5', 'Onsets 6,7'},'Location','northwest','FontSize', labels_text_size)
     set(legend,'color','white');
 
         % onsets 2;3 p1
-    plot(time, p2_23_h.dist_pgi_avg, 'color', 'r', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, p2_23_h.dist_pgi_avg, 'color', 'r', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, p2_23_h.dist_pgi_high, 'color', 'r', 'LineWidth', 0.00001,'HandleVisibility','off');
     plot(time, p2_23_h.dist_pgi_low, 'color', 'r', 'LineWidth', 0.00001,'HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -3817,7 +4030,7 @@ elseif strcmp(experiment_type, 'three-way-interaction')
     set(h,'facealpha',.10)
 
         % onsets 4,5 p1 
-    plot(time, p2_45_h.dist_pgi_avg, 'color', 'g', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, p2_45_h.dist_pgi_avg, 'color', 'g', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, p2_45_h.dist_pgi_high, 'color', 'g', 'LineWidth', 0.00001,'HandleVisibility','off');
     plot(time, p2_45_h.dist_pgi_low, 'color', 'g', 'LineWidth', 0.00001,'HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -3826,7 +4039,7 @@ elseif strcmp(experiment_type, 'three-way-interaction')
     set(h,'facealpha',.10)  
 
         % onsets 6;7 p3
-    plot(time, p2_67_h.dist_pgi_avg, 'color', 'b', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, p2_67_h.dist_pgi_avg, 'color', 'b', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, p2_67_h.dist_pgi_high, 'color', 'b', 'LineWidth', 0.00001,'HandleVisibility','off');
     plot(time, p2_67_h.dist_pgi_low, 'color', 'b', 'LineWidth', 0.00001,'HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -3843,15 +4056,22 @@ elseif strcmp(experiment_type, 'three-way-interaction')
     xline(start_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
     xline(end_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
     xline(peak_effect, '--r','HandleVisibility','off', "LineWidth", 1.5);
+    xline(line_plot_effect, '--','HandleVisibility','off', "LineWidth", 1.5);
     xline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
     yline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
 
     %xlabel("Milliseconds", "FontSize",labels_text_size)
     %ylabel(ax_label, "FontSize",labels_text_size)
+    xregion([-inf, start_peak], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+    
+    % Shade the region after end_peak
+    xregion([end_peak, inf], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
 
-    %%%%%%%
-    % onsets 2;3, 4;5 6,7 for P2 medium low
-    nexttile
+    %% %%%%% PARTITION 2 LOW PANEL MEDIUM
+    % onsets 2;3, 4;5 6,7 for P2 high
+    %subplot(6, 3,9);
+    %set(gca, 'Position', pos8); % Adjust the size and position
+    subplot("Position", pos8);
     %set(gca,'Color',[.85,.85,.85])
     hold on;
     %plot(NaN(1), 'Color', 'r');
@@ -3860,7 +4080,7 @@ elseif strcmp(experiment_type, 'three-way-interaction')
     %legend({'Onsets 2,3', 'Onsets 4,5', 'Onsets 6,7'},'Location','bestoutside','FontSize', labels_text_size)
 
         % onsets 2;3 p1
-    plot(time, p2_23_l.dist_med_avg, 'color', 'r', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, p2_23_l.dist_med_avg, 'color', 'r', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, p2_23_l.dist_med_high, 'color', 'r', 'LineWidth', 0.00001,'HandleVisibility','off');
     plot(time, p2_23_l.dist_med_low, 'color', 'r', 'LineWidth', 0.00001,'HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -3869,7 +4089,7 @@ elseif strcmp(experiment_type, 'three-way-interaction')
     set(h,'facealpha',.10)
 
         % onsets 4,5 p1 
-    plot(time, p2_45_l.dist_med_avg, 'color', 'g', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, p2_45_l.dist_med_avg, 'color', 'g', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, p2_45_l.dist_med_high, 'color', 'g', 'LineWidth', 0.00001,'HandleVisibility','off');
     plot(time, p2_45_l.dist_med_low, 'color', 'g', 'LineWidth', 0.00001,'HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -3878,7 +4098,7 @@ elseif strcmp(experiment_type, 'three-way-interaction')
     set(h,'facealpha',.10)  
 
         % onsets 6;7 p3
-    plot(time, p2_67_l.dist_med_avg, 'color', 'b', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, p2_67_l.dist_med_avg, 'color', 'b', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, p2_67_l.dist_med_high, 'color', 'b', 'LineWidth', 0.00001,'HandleVisibility','off');
     plot(time, p2_67_l.dist_med_low, 'color', 'b', 'LineWidth', 0.00001,'HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -3900,25 +4120,32 @@ elseif strcmp(experiment_type, 'three-way-interaction')
 
     %xlabel("Milliseconds", "FontSize",labels_text_size)
     %ylabel(ax_label, "FontSize",labels_text_size)
-    ylh = ylabel("Medium", "FontSize",16, "Rotation", 0, 'HorizontalAlignment','right', "FontWeight", "bold");
-    ylh.Position(2) = 2.75;
+    ylh = ylabel("P2 - Medium", "FontSize",12, "Rotation", 90, 'HorizontalAlignment','right', "FontWeight", "bold");
+    ylh.Position(2) =12;
     ylh.Position(1) = -220;
 
     %yyaxis right
     %yticks([])
     %ylabel(ax_label, "FontSize",labels_text_size, 'Color', 'black')
+    xregion([-inf, start_peak], 'FaceColor', [0.45 0.45 0.45], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+    
+    % Shade the region after end_peak
+    xregion([end_peak, inf], 'FaceColor', [0.45 0.45 0.45], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
 
-    %%%%%%%
-    % onsets 2;3, 4;5 6,7 for P2 medium high
-    nexttile
+    %% %%%%% PARTITION 2 HIGH PANEL MEDIUM
+    % onsets 2;3, 4;5 6,7 for P2 high
+    %subplot(6, 3,10);
+    %set(gca, 'Position', pos9); % Adjust the size and position
+    subplot("Position", pos9);
+    set(gca, 'YTick', []);
     hold on;
     plot(NaN(1), 'Color', 'r');
     plot(NaN(1), 'Color', 'g');
     plot(NaN(1), 'Color', 'b');
-    legend({'Onsets 2,3', 'Onsets 4,5', 'Onsets 6,7'},'Location','bestoutside','FontSize', labels_text_size)
+    legend({'Onsets 2,3', 'Onsets 4,5', 'Onsets 6,7'},'Location','northwest','FontSize', labels_text_size)
 
         % onsets 2;3 p1
-    plot(time, p2_23_h.dist_med_avg, 'color', 'r', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, p2_23_h.dist_med_avg, 'color', 'r', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, p2_23_h.dist_med_high, 'color', 'r', 'LineWidth', 0.00001,'HandleVisibility','off');
     plot(time, p2_23_h.dist_med_low, 'color', 'r', 'LineWidth', 0.00001,'HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -3927,7 +4154,7 @@ elseif strcmp(experiment_type, 'three-way-interaction')
     set(h,'facealpha',.10)
 
         % onsets 4,5 p1 
-    plot(time, p2_45_h.dist_med_avg, 'color', 'g', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, p2_45_h.dist_med_avg, 'color', 'g', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, p2_45_h.dist_med_high, 'color', 'g', 'LineWidth', 0.00001,'HandleVisibility','off');
     plot(time, p2_45_h.dist_med_low, 'color', 'g', 'LineWidth', 0.00001,'HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -3936,7 +4163,7 @@ elseif strcmp(experiment_type, 'three-way-interaction')
     set(h,'facealpha',.10)  
 
         % onsets 6;7 p3
-    plot(time, p2_67_h.dist_med_avg, 'color', 'b', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, p2_67_h.dist_med_avg, 'color', 'b', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, p2_67_h.dist_med_high, 'color', 'b', 'LineWidth', 0.00001,'HandleVisibility','off');
     plot(time, p2_67_h.dist_med_low, 'color', 'b', 'LineWidth', 0.00001,'HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -3958,11 +4185,16 @@ elseif strcmp(experiment_type, 'three-way-interaction')
 
     %xlabel("Milliseconds", "FontSize",labels_text_size)
     %ylabel(ax_label, "FontSize",labels_text_size)
+    xregion([-inf, start_peak], 'FaceColor', [0.45 0.45 0.45], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+    
+    % Shade the region after end_peak
+    xregion([end_peak, inf], 'FaceColor', [0.45 0.45 0.45], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
 
-%%%%%%% PARTITION 3
-    % onsets 2;3, 4;5 6,7 for P3 low
-    nexttile
-    set(gca,'Color',[.85,.85,.85])
+    %% %%%%% PARTITION 3 LOW PANEL PGI
+    % onsets 2;3, 4;5 6,7 for P2 high
+    %subplot(6, 3,11);
+    %set(gca, 'Position', pos10); % Adjust the size and position
+    subplot("Position", pos10);
     hold on;
     %plot(NaN(1), 'Color', 'r');
     %plot(NaN(1), 'Color', 'g');
@@ -3970,7 +4202,7 @@ elseif strcmp(experiment_type, 'three-way-interaction')
     %legend({'Onsets 2,3', 'Onsets 4,5', 'Onsets 6,7'},'Location','bestoutside','FontSize', labels_text_size)
 
         % onsets 2;3 p1
-    plot(time, p3_23_l.dist_pgi_avg, 'color', 'r', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, p3_23_l.dist_pgi_avg, 'color', 'r', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, p3_23_l.dist_pgi_high, 'color', 'r', 'LineWidth', 0.00001,'HandleVisibility','off');
     plot(time, p3_23_l.dist_pgi_low, 'color', 'r', 'LineWidth', 0.00001,'HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -3979,7 +4211,7 @@ elseif strcmp(experiment_type, 'three-way-interaction')
     set(h,'facealpha',.10)
 
         % onsets 4,5 p1 
-    plot(time, p3_45_l.dist_pgi_avg, 'color', 'g', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, p3_45_l.dist_pgi_avg, 'color', 'g', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, p3_45_l.dist_pgi_high, 'color', 'g', 'LineWidth', 0.00001,'HandleVisibility','off');
     plot(time, p3_45_l.dist_pgi_low, 'color', 'g', 'LineWidth', 0.00001,'HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -3988,7 +4220,7 @@ elseif strcmp(experiment_type, 'three-way-interaction')
     set(h,'facealpha',.10)  
 
         % onsets 6;7 p3
-    plot(time, p3_67_l.dist_pgi_avg, 'color', 'b', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, p3_67_l.dist_pgi_avg, 'color', 'b', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, p3_67_l.dist_pgi_high, 'color', 'b', 'LineWidth', 0.00001,'HandleVisibility','off');
     plot(time, p3_67_l.dist_pgi_low, 'color', 'b', 'LineWidth', 0.00001,'HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -4005,13 +4237,14 @@ elseif strcmp(experiment_type, 'three-way-interaction')
     xline(start_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
     xline(end_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
     xline(peak_effect, '--r','HandleVisibility','off', "LineWidth", 1.5);
+    xline(line_plot_effect, '--','HandleVisibility','off', "LineWidth", 1.5);
     xline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
     yline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
 
     %xlabel("Milliseconds", "FontSize",labels_text_size)
     %ylabel(ax_label, "FontSize",labels_text_size)
-    ylh = ylabel("PGI", "FontSize",16, "Rotation", 0, 'HorizontalAlignment','right', "FontWeight", "bold");
-    ylh.Position(2) = 2.75;
+    ylh = ylabel("P3 - PGI", "FontSize",12, "Rotation", 90, 'HorizontalAlignment','right', "FontWeight", "bold");
+    ylh.Position(2) = 9;
     ylh.Position(1) = -220;
 
     %yyaxis right
@@ -4019,20 +4252,64 @@ elseif strcmp(experiment_type, 'three-way-interaction')
     %ylabel(ax_label, "FontSize",labels_text_size, 'Color', 'black')
     
     %%%%%%%
-
-    %%%%%%%
-    % onsets 2;3, 4;5 6,7 for P3 high
-    set(gca,'Color',[.85,.85,.85])
-    nexttile
+    xregion([-inf, start_peak], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
     
+    % Shade the region after end_peak
+    xregion([end_peak, inf], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+
+    set(gca, 'XTick', []);
+
+    %% %%%%% PARTITION 3 INTERACTION PANEL PGI
+    % onsets 2;3, 4;5 6,7 for P2 high
+    %subplot(6, 3,12);
+    %set(gca, 'Position', posMiddle5); % Adjust the size and position
+    subplot("Position", posMiddle5);
+    hold on ;
+
+    [~, peak_effect_idx] = min(abs(data{1}.time - line_plot_effect/1000));
+
+    p1_23_low = p3_23_l.dist_pgi_avg(peak_effect_idx);
+    p1_23_high = p3_23_h.dist_pgi_avg(peak_effect_idx);
+    
+    p1_45_low = p3_45_l.dist_pgi_avg(peak_effect_idx);
+    p1_45_high = p3_45_h.dist_pgi_avg(peak_effect_idx);
+
+    p1_67_low = p3_67_l.dist_pgi_avg(peak_effect_idx);
+    p1_67_high = p3_67_h.dist_pgi_avg(peak_effect_idx);
+
+    partitions_1 = [p1_23_low, p1_23_high];
+    partitions_2 = [p1_45_low, p1_45_high];
+    partitions_3 = [p1_67_low, p1_67_high];
+
+    plot(partitions_1, '-o','color', 'r' ,'LineWidth', plot_line_width,'HandleVisibility','off');
+    plot(partitions_2,  '-o','color', 'g' ,'LineWidth', plot_line_width,'HandleVisibility','off');
+    plot(partitions_3, '-o','color','b','LineWidth', plot_line_width,'HandleVisibility','off');
+        
+    % Customize grid and axis settings
+    grid on;                           % Enable gridlines
+    set(gca, 'XTick', []); % Disable ticks
+    
+    % Set y-axis limits
+    ylim([-1, 4]);
+    
+    % Title
+    title("P3 - LOW vs. HIGH",'FontSize', 18);
+
+    %% %%%%% PARTITION 3 HIGH PANEL PGI
+    % onsets 2;3, 4;5 6,7 for P2 high
+    %subplot(6, 3,13);
+    %set(gca, 'Position', pos11); % Adjust the size and position
+    subplot("Position", pos11);
+    set(gca, 'YTick', []);
+    set(gca, 'XTick', []);
     hold on;
     plot(NaN(1), 'Color', 'r');
     plot(NaN(1), 'Color', 'g');
     plot(NaN(1), 'Color', 'b');
-    legend({'Onsets 2,3', 'Onsets 4,5', 'Onsets 6,7'},'Location','bestoutside','FontSize', labels_text_size)
+    legend({'Onsets 2,3', 'Onsets 4,5', 'Onsets 6,7'},'Location','northwest','FontSize', labels_text_size)
 
         % onsets 2;3 p1
-    plot(time, p3_23_h.dist_pgi_avg, 'color', 'r', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, p3_23_h.dist_pgi_avg, 'color', 'r', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, p3_23_h.dist_pgi_high, 'color', 'r', 'LineWidth', 0.00001,'HandleVisibility','off');
     plot(time, p3_23_h.dist_pgi_low, 'color', 'r', 'LineWidth', 0.00001,'HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -4041,7 +4318,7 @@ elseif strcmp(experiment_type, 'three-way-interaction')
     set(h,'facealpha',.10)
 
         % onsets 4,5 p1 
-    plot(time, p3_45_h.dist_pgi_avg, 'color', 'g', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, p3_45_h.dist_pgi_avg, 'color', 'g', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, p3_45_h.dist_pgi_high, 'color', 'g', 'LineWidth', 0.00001,'HandleVisibility','off');
     plot(time, p3_45_h.dist_pgi_low, 'color', 'g', 'LineWidth', 0.00001,'HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -4050,7 +4327,7 @@ elseif strcmp(experiment_type, 'three-way-interaction')
     set(h,'facealpha',.10)  
 
         % onsets 6;7 p3
-    plot(time, p3_67_h.dist_pgi_avg, 'color', 'b', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, p3_67_h.dist_pgi_avg, 'color', 'b', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, p3_67_h.dist_pgi_high, 'color', 'b', 'LineWidth', 0.00001,'HandleVisibility','off');
     plot(time, p3_67_h.dist_pgi_low, 'color', 'b', 'LineWidth', 0.00001,'HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -4067,16 +4344,24 @@ elseif strcmp(experiment_type, 'three-way-interaction')
     xline(start_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
     xline(end_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
     xline(peak_effect, '--r','HandleVisibility','off', "LineWidth", 1.5);
+    xline(line_plot_effect, '--','HandleVisibility','off', "LineWidth", 1.5);
     xline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
     yline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
 
     %xlabel("Milliseconds", "FontSize",labels_text_size)
     %ylabel(ax_label, "FontSize",labels_text_size)
+    xregion([-inf, start_peak], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+    
+    % Shade the region after end_peak
+    xregion([end_peak, inf], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
 
-    %%%%%%%
-    % onsets 2;3, 4;5 6,7 for P3 medium low
-    set(gca,'Color',[.85,.85,.85])
-    nexttile
+    set(gca, 'XTick', []);
+
+    %% %%%%% PARTITION 3 LOW PANEL MEDIUM
+    % onsets 2;3, 4;5 6,7 for P2 high
+    %subplot(6, 3,13);
+    %set(gca, 'Position', pos12); % Adjust the size and position
+    subplot("Position", pos12);
     hold on;
     %plot(NaN(1), 'Color', 'r');
     %plot(NaN(1), 'Color', 'g');
@@ -4084,7 +4369,7 @@ elseif strcmp(experiment_type, 'three-way-interaction')
     %legend({'Onsets 2,3', 'Onsets 4,5', 'Onsets 6,7'},'Location','bestoutside','FontSize', labels_text_size)
 
         % onsets 2;3 p1
-    plot(time, p3_23_l.dist_med_avg, 'color', 'r', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, p3_23_l.dist_med_avg, 'color', 'r', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, p3_23_l.dist_med_high, 'color', 'r', 'LineWidth', 0.00001,'HandleVisibility','off');
     plot(time, p3_23_l.dist_med_low, 'color', 'r', 'LineWidth', 0.00001,'HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -4093,7 +4378,7 @@ elseif strcmp(experiment_type, 'three-way-interaction')
     set(h,'facealpha',.10)
 
         % onsets 4,5 p1 
-    plot(time, p3_45_l.dist_med_avg, 'color', 'g', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, p3_45_l.dist_med_avg, 'color', 'g', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, p3_45_l.dist_med_high, 'color', 'g', 'LineWidth', 0.00001,'HandleVisibility','off');
     plot(time, p3_45_l.dist_med_low, 'color', 'g', 'LineWidth', 0.00001,'HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -4102,7 +4387,7 @@ elseif strcmp(experiment_type, 'three-way-interaction')
     set(h,'facealpha',.10)  
 
         % onsets 6;7 p3
-    plot(time, p3_67_l.dist_med_avg, 'color', 'b', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, p3_67_l.dist_med_avg, 'color', 'b', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, p3_67_l.dist_med_high, 'color', 'b', 'LineWidth', 0.00001,'HandleVisibility','off');
     plot(time, p3_67_l.dist_med_low, 'color', 'b', 'LineWidth', 0.00001,'HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -4122,10 +4407,10 @@ elseif strcmp(experiment_type, 'three-way-interaction')
     xline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
     yline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
 
-    xlabel("Milliseconds", "FontSize",labels_text_size)
+    %xlabel("Milliseconds", "FontSize",labels_text_size)
     %ylabel(ax_label, "FontSize",labels_text_size)
-    ylh = ylabel("Medium", "FontSize",16, "Rotation", 0, 'HorizontalAlignment','right', "FontWeight", "bold");
-    ylh.Position(2) = 2.75;
+    ylh = ylabel("P3 - Medium", "FontSize",12, "Rotation", 90, 'HorizontalAlignment','right', "FontWeight", "bold");
+    ylh.Position(2) =11;
     ylh.Position(1) = -220;
 
    % yyaxis right
@@ -4135,15 +4420,25 @@ elseif strcmp(experiment_type, 'three-way-interaction')
     %%%%%%%
     % onsets 2;3, 4;5 6,7 for P3 medium high
     %set(gca,'Color',[.85,.85,.85])
-    nexttile
+        xregion([-inf, start_peak], 'FaceColor', [0.45 0.45 0.45], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+    
+    % Shade the region after end_peak
+    xregion([end_peak, inf], 'FaceColor', [0.45 0.45 0.45], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+
+    %% %%%%% PARTITION 3 HIGH PANEL MEDIUM
+    % onsets 2;3, 4;5 6,7 for P2 high
+    %subplot(6, 3,14);
+   % set(gca, 'Position', pos13); % Adjust the size and position
+        subplot("Position", pos13);
+    set(gca, 'YTick', []);
     hold on;
     plot(NaN(1), 'Color', 'r');
     plot(NaN(1), 'Color', 'g');
     plot(NaN(1), 'Color', 'b');
-    legend({'Onsets 2,3', 'Onsets 4,5', 'Onsets 6,7'},'Location','bestoutside','FontSize', labels_text_size)
+    legend({'Onsets 2,3', 'Onsets 4,5', 'Onsets 6,7'},'Location','northwest','FontSize', labels_text_size)
 
         % onsets 2;3 p1
-    plot(time, p3_23_h.dist_med_avg, 'color', 'r', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, p3_23_h.dist_med_avg, 'color', 'r', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, p3_23_h.dist_med_high, 'color', 'r', 'LineWidth', 0.00001,'HandleVisibility','off');
     plot(time, p3_23_h.dist_med_low, 'color', 'r', 'LineWidth', 0.00001,'HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -4152,7 +4447,7 @@ elseif strcmp(experiment_type, 'three-way-interaction')
     set(h,'facealpha',.10)
 
         % onsets 4,5 p1 
-    plot(time, p3_45_h.dist_med_avg, 'color', 'g', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, p3_45_h.dist_med_avg, 'color', 'g', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, p3_45_h.dist_med_high, 'color', 'g', 'LineWidth', 0.00001,'HandleVisibility','off');
     plot(time, p3_45_h.dist_med_low, 'color', 'g', 'LineWidth', 0.00001,'HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -4161,7 +4456,7 @@ elseif strcmp(experiment_type, 'three-way-interaction')
     set(h,'facealpha',.10)  
 
         % onsets 6;7 p3
-    plot(time, p3_67_h.dist_med_avg, 'color', 'b', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, p3_67_h.dist_med_avg, 'color', 'b', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, p3_67_h.dist_med_high, 'color', 'b', 'LineWidth', 0.00001,'HandleVisibility','off');
     plot(time, p3_67_h.dist_med_low, 'color', 'b', 'LineWidth', 0.00001,'HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -4182,16 +4477,60 @@ elseif strcmp(experiment_type, 'three-way-interaction')
     xline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
     yline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
 
-    xlabel("Milliseconds", "FontSize",labels_text_size)
+    %xlabel("Milliseconds", "FontSize",labels_text_size)
     %ylabel(ax_label, "FontSize",labels_text_size)
     
+    %set(gca,'Color',[.85,.85,.85])
+        xregion([-inf, start_peak], 'FaceColor', [0.45 0.45 0.45], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+    
+    % Shade the region after end_peak
+    xregion([end_peak, inf], 'FaceColor', [0.45 0.45 0.45], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
 
 
 elseif strcmp(experiment_type, 'partitions-2-8') && first_partition_regresion == 1 || ...
     strcmp(experiment_type,'pure-factor-effect')
-    t = tiledlayout(2,2, 'TileSpacing','Compact');
+    figure;
+    if plot_thin_med_thick        
+        % Row 1
+        pos1 = [0.05, 0.55, 0.35, 0.35];  % First plot (larger width)
+        pos2 = [0.425, 0.55, 0.15, 0.35];  % Second plot (half width)
+        pos3 = [0.6, 0.55, 0.35, 0.35];    % Third plot (larger width)
+        
+        % Row 2
+        pos4 = [0.05, 0.5, 0.35, 0.35];    % First plot (larger width)
+        pos5 = [0.425, 0.5, 0.15, 0.35];   % Second plot (half width)
+        pos6 = [0.6, 0.5, 0.35, 0.35];     % Third plot (larger width)
+    else
+            % Row 1
+        % Define the positions for the plots, keeping (2,1) and (2,3) empty
+    % Define the positions for the plots, keeping (2,1) and (2,3) empty
+    % Increasing width for pos1, pos3, pos4, and pos6
+    pos1 = [0.05, 0.6, 0.325, 0.25];   % Row 1, Col 1 (wider)
+    pos2 = [0.415, 0.6, 0.125, 0.25];  % Row 1, Col 2 (narrower)
+    pos3 = [0.57, 0.6, 0.325, 0.25];   % Row 1, Col 3 (wider)
+    
+    posMiddle = [0.415, 0.39, 0.125, 0.15]; % Row 2, Col 2 (centered and narrower)
+    
+    pos4 = [0.05, 0.1, 0.325, 0.25];   % Row 3, Col 1 (wider)
+    pos5 = [0.415, 0.1, 0.125, 0.25];  % Row 3, Col 2 (narrower)
+    pos6 = [0.57, 0.1, 0.325, 0.25];   % Row 3, Col 3 (wider)
+    end
+    
+    labels_text_size = 8;
+
+
+  
+    subplot(3,3,1);
+    set(gca, 'Position', pos1); % Adjust the size and position
     time = data{1}.time * 1000;
-    nexttile
+
+        % Shade the region before start_peak
+    xregion([-inf, start_peak], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+    
+    % Shade the region after end_peak
+    xregion([end_peak, inf], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+
+    line_plot_effect =174.00;
 
     hold on;
     %plot(NaN(1), 'r');
@@ -4202,7 +4541,7 @@ elseif strcmp(experiment_type, 'partitions-2-8') && first_partition_regresion ==
     %end
 
     % low
-    plot(time, ci1_l.dist_pgi_avg, 'color', 'r', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, ci1_l.dist_pgi_avg, 'color', 'r', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, ci1_l.dist_pgi_high, 'LineWidth', 0.00001, 'color', 'r','HandleVisibility','off');
     plot(time, ci1_l.dist_pgi_low, 'LineWidth', 0.00001, 'color', 'r','HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -4213,7 +4552,7 @@ elseif strcmp(experiment_type, 'partitions-2-8') && first_partition_regresion ==
     xlim(plotting_window);
 
     title("LOW",'FontSize', 18);
-    ylim([-6, 6])
+    ylim([-2, 6])
     grid on;
     hold off;
 
@@ -4221,6 +4560,7 @@ elseif strcmp(experiment_type, 'partitions-2-8') && first_partition_regresion ==
         xline(start_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
         xline(end_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
         xline(peak_effect, '--r','HandleVisibility','off', "LineWidth", 1.5);
+         xline(line_plot_effect, '--','HandleVisibility','off', "LineWidth", 1.5);
         xline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
         yline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
     end
@@ -4228,21 +4568,65 @@ elseif strcmp(experiment_type, 'partitions-2-8') && first_partition_regresion ==
     %xlabel("Milliseconds", "FontSize",labels_text_size)
     %ylabel(ax_label, "FontSize",labels_text_size)
 
-    ylh = ylabel("PGI", "FontSize",16, "Rotation", 0, 'HorizontalAlignment','right', "FontWeight", "bold");
-    ylh.Position(2) = 0.5;
+    ylh = ylabel("PGI", "FontSize",16, "Rotation", 90, 'HorizontalAlignment','right', "FontWeight", "bold");
+    ylh.Position(2) = 2;
     ylh.Position(1) = -220;
 
-    nexttile;
-
+    subplot(3,3,2);
+    set(gca, 'Position', pos2);
+    hold on;
     plot(NaN(1), 'r');
+    plot(NaN(1), 'k');
     if contains(experiment_type, 'partitions-2-8')
-        legend({'P1-PGI'},'Location','bestoutside','FontSize', labels_text_size)
+        legend({'P1-PGI'},'Location','northwest','FontSize', labels_text_size)
     elseif contains(experiment_type, 'pure-factor-effect')
-        legend({'PGI'},'Location','bestoutside','FontSize', labels_text_size)
+        legend({'PGI'},'Location','northwest','FontSize', labels_text_size)
     end
 
+    % interaction plot
+    [~, peak_effect_idx] = min(abs(data{1}.time - line_plot_effect/1000));
+    p1_high =  ci1_h.dist_pgi_avg(peak_effect_idx);
+    p1_low =  ci1_l.dist_pgi_avg(peak_effect_idx);
+
+    % thin thick average 
+     %p1_thin_high = ci1_h.dist_thin_avg(peak_effect_idx);
+     %p1_thick_high = ci1_h.dist_thick_avg(peak_effect_idx);
+     %p1_thin_low = ci1_l.dist_thin_avg(peak_effect_idx);
+     %p1_thick_low = ci1_l.dist_thick_avg(peak_effect_idx);
+
+    %mean_thin_thick_low = mean([p1_thin_low, p1_thick_low]);
+    %mean_thin_thick_high = mean([p1_thick_high, p1_thin_high]);
+
+    partitions_1 = [p1_low, p1_high];
+    %avg_thin_thick = [mean_thin_thick_low, mean_thin_thick_high];
+
+    plot(partitions_1, '-o','color', 'r' ,'LineWidth', plot_line_width,'HandleVisibility','off');
+    %plot(avg_thin_thick, '-o','color', 'k' ,'LineWidth', plot_line_width,'HandleVisibility','off');
+
+    title("LOW vs. HIGH",'FontSize', 18);
+
+    % Customize x-axis labels
+    xticks([1 2]);                 % Set x-tick positions
+    xticklabels({'LOW', 'HIGH'});   % Replace numeric x-ticks with custom labels
+    
+    % Remove x-axis numeric labels
+    set(gca, 'XTickLabelMode', 'manual', 'XTickMode', 'manual');
+      grid on;
+    % interaction plot end
+
+    subplot(3,3,3);
+    set(gca, 'Position', pos3);
     hold on;
-    plot(time, ci1_h.dist_pgi_avg, 'color', 'r', 'LineWidth', 3.5,'HandleVisibility','off');
+
+
+       % Shade the region before start_peak
+    xregion([-inf, start_peak], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+    
+    % Shade the region after end_peak
+    xregion([end_peak, inf], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+
+    hold on;
+    plot(time, ci1_h.dist_pgi_avg, 'color', 'r', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, ci1_h.dist_pgi_high, 'LineWidth', 0.00001, 'color', 'r','HandleVisibility','off');
     plot(time, ci1_h.dist_pgi_low, 'LineWidth', 0.00001, 'color', 'r','HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -4253,7 +4637,7 @@ elseif strcmp(experiment_type, 'partitions-2-8') && first_partition_regresion ==
     xlim(plotting_window);
 
     title("HIGH",'FontSize', 18);
-    ylim([-6, 6])
+    ylim([-2, 6])
     grid on;
     hold off;
 
@@ -4261,23 +4645,68 @@ elseif strcmp(experiment_type, 'partitions-2-8') && first_partition_regresion ==
         xline(start_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
         xline(end_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
         xline(peak_effect, '--r','HandleVisibility','off', "LineWidth", 1.5);
+        xline(line_plot_effect, '--','HandleVisibility','off', "LineWidth", 1.5);
         xline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
         yline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
     end
 
     %xlabel("Milliseconds", "FontSize",labels_text_size)
-    %ylabel(ax_label, "FontSize",labels_text_size)
+   % ylabel(ax_label, "FontSize",labels_text_size)
 
+    %% subplot middle
+    subplot('position', posMiddle);
+     hold on;
+
+    plot(NaN(1), 'Color', '#D95319');
+    plot(NaN(1), 'Color', 'g');
+    if contains(experiment_type, 'partitions-2-8')
+        legend({'P1-PGI'},'Location','northwest','FontSize', labels_text_size)
+    elseif contains(experiment_type, 'pure-factor-effect')
+        legend({'Medium', 'Avg. (Thin, Thick)'},'Location','northwest','FontSize', labels_text_size)
+    end
+
+    [~, peak_effect_idx] = min(abs(data{1}.time - line_plot_effect/1000));
+    low_med =  ci1_l.dist_med_avg(peak_effect_idx);
+    
+    low_thin =  ci1_h.dist_thin_avg(peak_effect_idx);
+    low_thick =  ci1_l.dist_thick_avg(peak_effect_idx);
+    low_thin_thick_avg = mean([low_thin, low_thick]);
+
+    high_med =  ci1_h.dist_med_avg(peak_effect_idx);
+
+    high_thick =  ci1_h.dist_thick_avg(peak_effect_idx);
+    high_thin =  ci1_h.dist_thin_avg(peak_effect_idx);
+    high_thin_thick_avg = mean([high_thin, high_thick]);
+    
+    med = [low_med, high_med];
+    avg_thin_thick = [low_thin_thick_avg, high_thin_thick_avg];
+    
+
+    plot(med, '-o','color', '#D95319' ,'LineWidth', plot_line_width,'HandleVisibility','off');
+    plot(avg_thin_thick,  '-o','color', 'g' ,'LineWidth', plot_line_width,'HandleVisibility','off');
+
+
+    % Customize x-axis labels
+    xticks([1 2]);                 % Set x-tick positions
+    %xticklabels({'LOW', 'HIGH'});   % Replace numeric x-ticks with custom labels
+    
+    % Remove x-axis numeric labels
+    set(gca, 'XTickLabelMode', 'manual', 'XTickMode', 'manual');
+    grid on;
+
+
+    %% subplot middle
 
     % low med etc
-    nexttile
+    subplot(3, 3, 7);
+    set(gca, 'Position', pos4);
     hold on;
     %plot(NaN(1), 'Color', '#0072BD');
     %plot(NaN(1), 'Color', '#D95319');
     %plot(NaN(1), 'Color', '#FFFF00');
     %legend({'Thin', 'Medium', 'Thick'},'Location','bestoutside','FontSize', labels_text_size)
 
-    plot(time, ci1_l.dist_thin_avg, 'color', '#0072BD', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, ci1_l.dist_thin_avg, 'color', '#0072BD', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, ci1_l.dist_thin_high, 'LineWidth', 0.01, 'color', '#0072BD','HandleVisibility','off');
     plot(time, ci1_l.dist_thin_low, 'LineWidth', 0.01, 'color', '#0072BD','HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -4285,7 +4714,7 @@ elseif strcmp(experiment_type, 'partitions-2-8') && first_partition_regresion ==
     h = fill(x2, inBetween, [0, 0.447, 0.741], 'HandleVisibility','off', 'LineStyle','none');
     set(h,'facealpha',.10)
 
-    plot(time, ci1_l.dist_med_avg, 'color', '#D95319', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, ci1_l.dist_med_avg, 'color', '#D95319', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, ci1_l.dist_med_high, 'LineWidth', 0.01, 'color', '#D95319','HandleVisibility','off');
     plot(time, ci1_l.dist_med_low, 'LineWidth', 0.01, 'color', '#D95319','HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -4293,17 +4722,17 @@ elseif strcmp(experiment_type, 'partitions-2-8') && first_partition_regresion ==
     h = fill(x2, inBetween, [0.851, 0.325, 0.098], 'HandleVisibility','off', 'LineStyle','none');
     set(h,'facealpha',.10)
 
-    plot(time, ci1_l.dist_thick_avg, 'color', '#FCD200', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, ci1_l.dist_thick_avg, 'color', '#FCD200', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, ci1_l.dist_thick_high, 'LineWidth', 0.01, 'color', '#FCD200','HandleVisibility','off');
     plot(time, ci1_l.dist_thick_low, 'LineWidth', 0.01, 'color', '#FCD200','HandleVisibility','off');
-    x2 = [time, fliplr(time)];
+   x2 = [time, fliplr(time)];
     inBetween = [ci1_l.dist_thick_high, fliplr(ci1_l.dist_thick_low)];
     h = fill(x2, inBetween, [1,0.92,0], 'HandleVisibility','off', 'LineStyle','none');
     set(h,'facealpha',.175)
 
     xlim(plotting_window);
 
-    ylim([-5.5, 8.5])
+    ylim([-5, 7])
     grid on;
     hold off;
 
@@ -4311,25 +4740,64 @@ elseif strcmp(experiment_type, 'partitions-2-8') && first_partition_regresion ==
         xline(start_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
         xline(end_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
         xline(peak_effect, '--r','HandleVisibility','off', "LineWidth", 1.5);
+        xline(line_plot_effect, '--','HandleVisibility','off', "LineWidth", 1.5);
         xline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
         yline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
     end
 
-    xlabel("Milliseconds", "FontSize",labels_text_size)
+    %xlabel("Milliseconds", "FontSize",labels_text_size)
     %ylabel(ax_label, "FontSize",labels_text_size)
-    ylh = ylabel("Medium", "FontSize",16, "Rotation", 0, 'HorizontalAlignment','right', "FontWeight", "bold");
-    ylh.Position(2) = 1.8;
+    ylh = ylabel("Amplitude", "FontSize",16, "Rotation", 90, 'HorizontalAlignment','right', "FontWeight", "bold");
+    ylh.Position(2) = 3.5;
     ylh.Position(1) = -220;
 
+    % Shade the region before start_peak
+    xregion([-inf, start_peak], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+    
+    % Shade the region after end_peak
+    xregion([end_peak, inf], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+
+
     % high med etc
-    nexttile
-    hold on;
+    subplot(3,3, 8);
+set(gca, 'Position', pos5); % Adjust the size and position
+     hold on;
+    [~, peak_effect_idx] = min(abs(data{1}.time - line_plot_effect/1000));
+    low_thick =  ci1_l.dist_thick_avg(peak_effect_idx);
+    low_med =  ci1_l.dist_med_avg(peak_effect_idx);
+    low_thin =  ci1_h.dist_thin_avg(peak_effect_idx);
+    high_thick =  ci1_h.dist_thick_avg(peak_effect_idx);
+    high_med =  ci1_h.dist_med_avg(peak_effect_idx);
+    high_thin =  ci1_h.dist_thin_avg(peak_effect_idx);
+    
+    thick = [low_thick, high_thick];
+    med = [low_med, high_med];
+    thin = [low_thin, high_thin];
+
+    plot(thick, '-o','color', '#FCD200' ,'LineWidth', plot_line_width,'HandleVisibility','off');
+    plot(thin,  '-o','color', '#0072BD' ,'LineWidth', plot_line_width,'HandleVisibility','off');
+    plot(med, '-o','color',  '#D95319','LineWidth', plot_line_width,'HandleVisibility','off');
+    
     plot(NaN(1), 'Color', '#0072BD');
     plot(NaN(1), 'Color', '#D95319');
     plot(NaN(1), 'Color', '#FFFF00');
-    legend({'Thin', 'Medium', 'Thick'},'Location','bestoutside','FontSize', labels_text_size)
+    %plot(NaN(1), 'Color', 'k');
+    legend({'Thin', 'Medium', 'Thick'},'Location','northwest','FontSize', labels_text_size)
+    
 
-    plot(time, ci1_h.dist_thin_avg, 'color', '#0072BD', 'LineWidth', 3.5,'HandleVisibility','off');
+    % Customize x-axis labels
+    xticks([1 2]);                 % Set x-tick positions
+    xticklabels({'LOW', 'HIGH'});   % Replace numeric x-ticks with custom labels
+    
+    % Remove x-axis numeric labels
+    set(gca, 'XTickLabelMode', 'manual', 'XTickMode', 'manual');
+    grid on;
+
+    subplot(3,3,9);
+set(gca, 'Position', pos6); % Adjust the size and position
+        hold on;
+    
+    plot(time, ci1_h.dist_thin_avg, 'color', '#0072BD', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, ci1_h.dist_thin_high, 'LineWidth', 0.01, 'color', '#0072BD','HandleVisibility','off');
     plot(time, ci1_h.dist_thin_low, 'LineWidth', 0.01, 'color', '#0072BD','HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -4337,7 +4805,7 @@ elseif strcmp(experiment_type, 'partitions-2-8') && first_partition_regresion ==
     h = fill(x2, inBetween, [0, 0.447, 0.741], 'HandleVisibility','off', 'LineStyle','none');
     set(h,'facealpha',.10)
 
-    plot(time, ci1_h.dist_med_avg, 'color', '#D95319', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, ci1_h.dist_med_avg, 'color', '#D95319', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, ci1_h.dist_med_high, 'LineWidth', 0.01, 'color', '#D95319','HandleVisibility','off');
     plot(time, ci1_h.dist_med_low, 'LineWidth', 0.01, 'color', '#D95319','HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -4345,7 +4813,7 @@ elseif strcmp(experiment_type, 'partitions-2-8') && first_partition_regresion ==
     h = fill(x2, inBetween, [0.851, 0.325, 0.098], 'HandleVisibility','off', 'LineStyle','none');
     set(h,'facealpha',.10)
 
-    plot(time, ci1_h.dist_thick_avg, 'color', '#FCD200', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, ci1_h.dist_thick_avg, 'color', '#FCD200', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, ci1_h.dist_thick_high, 'LineWidth', 0.01, 'color', '#FCD200','HandleVisibility','off');
     plot(time, ci1_h.dist_thick_low, 'LineWidth', 0.01, 'color', '#FCD200','HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -4355,7 +4823,7 @@ elseif strcmp(experiment_type, 'partitions-2-8') && first_partition_regresion ==
 
     xlim(plotting_window);
 
-    ylim([-5.5, 8.5])
+    ylim([-5, 7])
     grid on;
     hold off;
 
@@ -4363,26 +4831,77 @@ elseif strcmp(experiment_type, 'partitions-2-8') && first_partition_regresion ==
         xline(start_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
         xline(end_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
         xline(peak_effect, '--r','HandleVisibility','off', "LineWidth", 1.5);
+        xline(line_plot_effect, '--','HandleVisibility','off', "LineWidth", 1.5);
         xline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
         yline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
     end
 
-    xlabel("Milliseconds", "FontSize",labels_text_size)
+    %ylabel(ax_label, "FontSize",labels_text_size)
+
+    % Shade the region before start_peak
+    xregion([-inf, start_peak], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+    
+    % Shade the region after end_peak
+    xregion([end_peak, inf], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+
+
+    %xlabel("Milliseconds", "FontSize",labels_text_size)
     %ylabel(ax_label, "FontSize",labels_text_size)
 
 
-elseif strcmp(experiment_type, 'partitions-2-8') || strcmp(experiment_type, 'erps-23-45-67')
-    t = tiledlayout(5,2, 'TileSpacing','Compact');
-    time = data{1}.time * 1000;
 
+elseif strcmp(experiment_type, 'partitions-2-8') || strcmp(experiment_type, 'erps-23-45-67')
+    figure;
+    tick_mark_size = 12;
+    line_plot_type = 'peak';
+    if plot_thin_med_thick        
+        % Row 1
+        pos1 = [0.05, 0.55, 0.35, 0.35];  % First plot (larger width)
+        pos2 = [0.425, 0.55, 0.15, 0.35];  % Second plot (half width)
+        pos3 = [0.6, 0.55, 0.35, 0.35];    % Third plot (larger width)
+        
+        % Row 2
+        pos4 = [0.05, 0.5, 0.35, 0.35];    % First plot (larger width)
+        pos5 = [0.425, 0.5, 0.15, 0.35];   % Second plot (half width)
+        pos6 = [0.6, 0.5, 0.35, 0.35];     % Third plot (larger width)
+    else
+% Row 1
+        pos1 = [0.05, 0.55, 0.35, 0.35];  % First plot (larger width)
+        pos2 = [0.425, 0.55, 0.15, 0.35];  % Second plot (half width)
+        pos3 = [0.6, 0.55, 0.35, 0.35];    % Third plot (larger width)
+        
+        % Row 2
+        pos4 = [0.05, 0.15, 0.35, 0.35];    % First plot (larger width)
+        pos5 = [0.425, 0.15, 0.15, 0.35];   % Second plot (half width)
+        pos6 = [0.6, 0.15, 0.35, 0.35];     % Third plot (larger width)
+    end
+    
+    time = data{1}.time * 1000;
+ 
 
     % PGI LOW
-    nexttile
+    subplot(2,3,1);
+    set(gca, 'Position', pos1); % Adjust the size and position
+
+    % Shade the region before start_peak
+    xregion([-inf, start_peak], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+    
+    % Shade the region after end_peak
+    xregion([end_peak, inf], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+
+
     hold on;
     %plot(NaN(1), 'r');
     %plot(NaN(1), 'g');
     %plot(NaN(1),  'color','#4DBEEE');
     if contains(experiment_type, 'partitions-2-8')
+        if strcmp(regression_type, "Visual Stress") 
+            line_plot_effect = 226;
+        elseif strcmp(regression_type, "Headache")
+             line_plot_effect =171.094;
+        elseif strcmp(regression_type, "Discomfort")
+            line_plot_effect = 173.5;
+        end
 
         %legend({'P1-PGI', 'P2-PGI', 'P3-PGI'},'Location','bestoutside','FontSize', labels_text_size)
         pgi_low = "Low Group: Partitions PGI";
@@ -4397,7 +4916,13 @@ elseif strcmp(experiment_type, 'partitions-2-8') || strcmp(experiment_type, 'erp
         high_p3 = "High Group P3";
 
     elseif strcmp(experiment_type, 'erps-23-45-67')
-
+        if strcmp(regression_type, "Visual Stress") 
+            line_plot_effect = 244;
+        elseif strcmp(regression_type, "Headache")
+            line_plot_effect =148;
+        elseif strcmp(regression_type, "Discomfort")
+            line_plot_effect = 205;
+        end
         %legend({'Onsets 2:3', 'Onsets 4:5', 'Onsets 6:7'},'Location','bestoutside','FontSize', labels_text_size)
         pgi_low = "Low Group: Onsets PGI";
         pgi_high = "High Group: Onsets: PGI";
@@ -4412,7 +4937,7 @@ elseif strcmp(experiment_type, 'partitions-2-8') || strcmp(experiment_type, 'erp
 
     end
 
-    plot(time, ci1_l.dist_pgi_avg, 'color', 'r', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, ci1_l.dist_pgi_avg, 'color', 'r', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, ci1_l.dist_pgi_high, 'LineWidth', 0.01, 'color', 'r','HandleVisibility','off');
     plot(time, ci1_l.dist_pgi_low, 'LineWidth', 0.01, 'color', 'r','HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -4420,7 +4945,7 @@ elseif strcmp(experiment_type, 'partitions-2-8') || strcmp(experiment_type, 'erp
     h = fill(x2, inBetween, 'r', 'HandleVisibility','off', 'LineStyle','none');
     set(h,'facealpha',.10)
 
-    plot(time, ci2_l.dist_pgi_avg, 'color', 'g', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, ci2_l.dist_pgi_avg, 'color', 'g', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, ci2_l.dist_pgi_high, 'LineWidth', 0.01, 'color', 'g','HandleVisibility','off');
     plot(time, ci2_l.dist_pgi_low, 'LineWidth', 0.01, 'color', 'g','HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -4428,7 +4953,7 @@ elseif strcmp(experiment_type, 'partitions-2-8') || strcmp(experiment_type, 'erp
     h = fill(x2, inBetween, 'g', 'HandleVisibility','off', 'LineStyle','none');
     set(h,'facealpha', .10)
 
-    plot(time, ci3_l.dist_pgi_avg, 'color', [0.3010 0.7450 0.9330], 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, ci3_l.dist_pgi_avg, 'color', [0.3010 0.7450 0.9330], 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, ci3_l.dist_pgi_high, 'LineWidth', 0.01, 'color', [0.3010 0.7450 0.9330],'HandleVisibility','off');
     plot(time, ci3_l.dist_pgi_low, 'LineWidth', 0.01, 'color', [0.3010 0.7450 0.9330],'HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -4454,33 +4979,102 @@ elseif strcmp(experiment_type, 'partitions-2-8') || strcmp(experiment_type, 'erp
 
     grid on;
     hold off;
+    
+    % Gray out the region before the start_peak
+
+    % Shade the region before start_peak
+    xregion([-inf, start_peak], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+    
+    % Shade the region after end_peak
+    xregion([end_peak, inf], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+
 
     xline(start_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
     xline(end_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
     xline(peak_effect, '--r','HandleVisibility','off', "LineWidth", 1.5);
+    xline(line_plot_effect, '--','HandleVisibility','off', "LineWidth", 1.5);
     xline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
     yline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
 
     %xlabel("Milliseconds", "FontSize",labels_text_size)
     %ylabel(ax_label, "FontSize",labels_text_size)
-    ylh = ylabel("PGI", "FontSize",16, "Rotation", 0, 'HorizontalAlignment','right', "FontWeight", "bold");
+    ylh = ylabel("PGI", "FontSize",23, "Rotation",90, 'HorizontalAlignment','right', "FontWeight", "bold");
     ylh.Position(2) = 0.5;
     ylh.Position(1) = -220;
 
-
-    % PGI HIGH
-    nexttile
+    % interaction plot
+    subplot(2,3,2);
+    set(gca, 'Position', pos2);
     hold on;
-    plot(NaN(1), 'r');
-    plot(NaN(1), 'g');
-    plot(NaN(1),  'color','#4DBEEE');
-    if contains(experiment_type, 'partitions-2-8')
-        legend({'P1-PGI', 'P2-PGI', 'P3-PGI'},'Location','bestoutside','FontSize', labels_text_size)
-    elseif strcmp(experiment_type, 'erps-23-45-67')
-        legend({'Onsets 2:3', 'Onsets 4:5', 'Onsets 6:7'},'Location','bestoutside','FontSize', labels_text_size)
+
+    %plot(NaN(1), 'r');
+    %plot(NaN(1), 'g'); 
+    %plot(NaN(1),  'color','#4DBEEE');
+    %if contains(experiment_type, 'partitions-2-8')
+    %    legend({'P1: Low vs. High', 'P2: Low vs. High', 'P3: Low vs. High'},'Location','bestoutside','FontSize', labels_text_size)
+    %elseif strcmp(experiment_type, 'erps-23-45-67')
+    %    legend({'2:3 Low vs. High', '4:5 Low vs. High', '6:7 Loe vs. High'},'Location','bestoutside','FontSize', labels_text_size)
+    %end
+
+    [~, peak_effect_idx] = min(abs(data{1}.time - line_plot_effect/1000));
+
+    if strcmp(line_plot_type, 'peak')
+        p1_high =  ci1_h.dist_pgi_avg(peak_effect_idx);
+        p2_high =  ci2_h.dist_pgi_avg(peak_effect_idx);
+        p3_high =  ci3_h.dist_pgi_avg(peak_effect_idx);
+        p1_low =  ci1_l.dist_pgi_avg(peak_effect_idx);
+        p2_low =  ci2_l.dist_pgi_avg(peak_effect_idx);
+        p3_low =  ci3_l.dist_pgi_avg(peak_effect_idx);
+    elseif strcmp(line_plot_type, 'avg')
+        p1_high= mean(ci1_h.dist_pgi_avg(start_peak:end_peak));
+        p2_high= mean(ci2_h.dist_pgi_avg(start_peak:end_peak));
+        p3_high= mean(ci3_h.dist_pgi_avg(start_peak:end_peak));
+        p1_low= mean(ci1_l.dist_pgi_avg(start_peak:end_peak));
+        p2_low= mean(ci2_l.dist_pgi_avg(start_peak:end_peak));
+        p3_low= mean(ci3_l.dist_pgi_avg(start_peak:end_peak));
     end
 
-    plot(time, ci1_h.dist_pgi_avg, 'color', 'r', 'LineWidth', 3.5,'HandleVisibility','off');
+
+    
+    partitions_1 = [p1_low, p1_high];
+    partitions_2 = [p2_low, p2_high];
+    partitions_3 = [p3_low, p3_high];
+
+    plot(partitions_1, '-o','color', 'r' ,'LineWidth', plot_line_width,'HandleVisibility','off');
+    plot(partitions_2,  '-o','color', 'g' ,'LineWidth', plot_line_width,'HandleVisibility','off');
+    plot(partitions_3, '-o','color','#4DBEEE','LineWidth', plot_line_width,'HandleVisibility','off');
+    
+    title("LOW vs. HIGH",'FontSize', 18);
+
+    % Customize x-axis labels
+    xticks([1 2]);                 % Set x-tick positions
+    xticklabels({'LOW', 'HIGH'});   % Replace numeric x-ticks with custom labels
+    
+    % Remove x-axis numeric labels
+    set(gca, 'XTickLabelMode', 'manual', 'XTickMode', 'manual');
+      grid on;
+
+    % PGI HIGH
+subplot(2,3,3);
+set(gca, 'Position', pos3); % Adjust the size and position
+     hold on;
+
+
+        % Shade the region before start_peak
+    xregion([-inf, start_peak], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+    
+    % Shade the region after end_peak
+    xregion([end_peak, inf], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+    % plot(NaN(1), 'r');
+    % plot(NaN(1), 'g'); 
+    % plot(NaN(1),  'color','#4DBEEE');
+    % if contains(experiment_type, 'partitions-2-8')
+    %     legend({'P1-PGI', 'P2-PGI', 'P3-PGI'},'Location','bestoutside','FontSize', labels_text_size)
+    % elseif strcmp(experiment_type, 'erps-23-45-67')
+    %     legend({'Onsets 2:3', 'Onsets 4:5', 'Onsets 6:7'},'Location','bestoutside','FontSize', labels_text_size)
+    % end
+
+    plot(time, ci1_h.dist_pgi_avg, 'color', 'r', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, ci1_h.dist_pgi_high, 'LineWidth', 0.00001, 'color', 'r','HandleVisibility','off');
     plot(time, ci1_h.dist_pgi_low, 'LineWidth', 0.00001, 'color', 'r','HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -4488,7 +5082,7 @@ elseif strcmp(experiment_type, 'partitions-2-8') || strcmp(experiment_type, 'erp
     h = fill(x2, inBetween, 'r', 'HandleVisibility','off', 'LineStyle','none');
     set(h,'facealpha',.10)
 
-    plot(time, ci2_h.dist_pgi_avg, 'color', 'g', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, ci2_h.dist_pgi_avg, 'color', 'g', 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, ci2_h.dist_pgi_high, 'LineWidth', 0.00001, 'color', 'g','HandleVisibility','off');
     plot(time, ci2_h.dist_pgi_low, 'LineWidth', 0.00001, 'color', 'g','HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -4496,7 +5090,7 @@ elseif strcmp(experiment_type, 'partitions-2-8') || strcmp(experiment_type, 'erp
     h = fill(x2, inBetween, 'g', 'HandleVisibility','off', 'LineStyle','none');
     set(h,'facealpha',.10)
 
-    plot(time, ci3_h.dist_pgi_avg, 'color', [0.3010 0.7450 0.9330], 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, ci3_h.dist_pgi_avg, 'color', [0.3010 0.7450 0.9330], 'LineWidth', plot_line_width,'HandleVisibility','off');
     plot(time, ci3_h.dist_pgi_high, 'LineWidth', 0.00001, 'color', [0.3010 0.7450 0.9330],'HandleVisibility','off');
     plot(time, ci3_h.dist_pgi_low, 'LineWidth', 0.00001, 'color', [0.3010 0.7450 0.9330],'HandleVisibility','off');
     x2 = [time, fliplr(time)];
@@ -4515,16 +5109,36 @@ elseif strcmp(experiment_type, 'partitions-2-8') || strcmp(experiment_type, 'erp
     xline(start_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
     xline(end_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
     xline(peak_effect, '--r','HandleVisibility','off', "LineWidth", 1.5);
+    xline(line_plot_effect, '--','HandleVisibility','off', "LineWidth", 1.5);
     xline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
     yline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
 
     %xlabel("Milliseconds", "FontSize",labels_text_size)
     %ylabel(ax_label, "FontSize",labels_text_size)
 
+    hold on;
+    plot(NaN(1), 'r');
+    plot(NaN(1), 'g'); 
+    plot(NaN(1),  'color','#4DBEEE');
+    if contains(experiment_type, 'partitions-2-8')
+        legend({'P1-PGI', 'P2-PGI', 'P3-PGI'},'Location','northwest','FontSize', labels_text_size)
+    elseif strcmp(experiment_type, 'erps-23-45-67')
+        legend({'2:3 PGI', '4:5 PGI', '6:7 PGI'},'Location','northwest','FontSize', labels_text_size)
+    end
+
 
     % MED LOW
-    nexttile
+subplot(2,3,4);
+set(gca, 'Position', pos4); % Adjust the size and position
     hold on;
+
+            % Shade the region before start_peak
+    xregion([-inf, start_peak], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+    
+    % Shade the region after end_peak
+    xregion([end_peak, inf], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+
+
     %plot(NaN(1), 'r');
     %plot(NaN(1), 'g');
     %plot(NaN(1), 'b');
@@ -4534,9 +5148,9 @@ elseif strcmp(experiment_type, 'partitions-2-8') || strcmp(experiment_type, 'erp
     %    legend({'Med-2:3', 'Med-4:5', 'Med-6:7'},'Location','bestoutside','FontSize', labels_text_size)
     %end
 
-    plot(time, ci1_l.dist_med_avg, 'color', 'r', 'LineWidth', 3.5,'HandleVisibility','off');
-    plot(time, ci2_l.dist_med_avg, 'color', 'g', 'LineWidth', 3.5,'HandleVisibility','off');
-    plot(time, ci3_l.dist_med_avg, 'color', 'b', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(time, ci1_l.dist_med_avg, 'color', 'r', 'LineWidth', plot_line_width,'HandleVisibility','off');
+    plot(time, ci2_l.dist_med_avg, 'color', 'g', 'LineWidth', plot_line_width,'HandleVisibility','off');
+    plot(time, ci3_l.dist_med_avg, 'color', 'b', 'LineWidth', plot_line_width,'HandleVisibility','off');
 
     xlim(plotting_window);
     %title("Medium",'FontSize', labels_text_size);
@@ -4558,31 +5172,72 @@ elseif strcmp(experiment_type, 'partitions-2-8') || strcmp(experiment_type, 'erp
     xline(start_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
     xline(end_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
     xline(peak_effect, '--r','HandleVisibility','off', "LineWidth", 1.5);
+    xline(line_plot_effect, '--','HandleVisibility','off', "LineWidth", 1.5);
     xline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
     yline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
 
     %xlabel("Milliseconds", "FontSize",labels_text_size)
     %ylabel(ax_label, "FontSize",labels_text_size)
-    ylh = ylabel("Medium", "FontSize",16, "Rotation", 0, 'HorizontalAlignment','right', "FontWeight", "bold");
-    ylh.Position(2) = 2.75;
+    ylh = ylabel("Medium", "FontSize",23, "Rotation", 90 ,'HorizontalAlignment','right', "FontWeight", "bold");
+    ylh.Position(2) = 5;
     ylh.Position(1) = -220;
 
-    % MED HIGH
-    nexttile
-    hold on;
-    plot(NaN(1), 'r');
-    plot(NaN(1), 'g');
-    plot(NaN(1), 'b');
-    if contains(experiment_type, 'partitions-2-8')
-        legend({'Med-P1', 'Med-P2', 'Med-P3'},'Location','bestoutside','FontSize', labels_text_size)
-    elseif strcmp(experiment_type, 'erps-23-45-67')
-        legend({'Med-2:3', 'Med-4:5', 'Med-6:7'},'Location','bestoutside','FontSize', labels_text_size)
+
+    %% scatter plot 
+subplot(2,3,5);
+set(gca, 'Position', pos5); % Adjust the size and position
+     hold on;
+    [~, peak_effect_idx] = min(abs(data{1}.time - line_plot_effect/1000));
+    p1_high =  ci1_h.dist_med_avg(peak_effect_idx);
+    p2_high =  ci2_h.dist_med_avg(peak_effect_idx);
+    p3_high =  ci3_h.dist_med_avg(peak_effect_idx);
+    p1_low =  ci1_l.dist_med_avg(peak_effect_idx);
+    p2_low =  ci2_l.dist_med_avg(peak_effect_idx);
+    p3_low =  ci3_l.dist_med_avg(peak_effect_idx);
+   
+   if strcmp(line_plot_type, 'peak')
+        p1_high =  ci1_h.dist_med_avg(peak_effect_idx);
+        p2_high =  ci2_h.dist_med_avg(peak_effect_idx);
+        p3_high =  ci3_h.dist_med_avg(peak_effect_idx);
+        p1_low =  ci1_l.dist_med_avg(peak_effect_idx);
+        p2_low =  ci2_l.dist_med_avg(peak_effect_idx);
+        p3_low =  ci3_l.dist_med_avg(peak_effect_idx);
+    elseif strcmp(line_plot_type, 'avg')
+        p1_high= mean(ci1_h.dist_med_avg(start_peak:end_peak));
+        p2_high= mean(ci2_h.dist_med_avg(start_peak:end_peak));
+        p3_high= mean(ci3_h.dist_med_avg(start_peak:end_peak));
+        p1_low= mean(ci1_l.dist_med_avg(start_peak:end_peak));
+        p2_low= mean(ci2_l.dist_med_avg(start_peak:end_peak));
+        p3_low= mean(ci3_l.dist_med_avg(start_peak:end_peak));
     end
 
+    partitions_1 = [p1_low, p1_high];
+    partitions_2 = [p2_low, p2_high];
+    partitions_3 = [p3_low, p3_high];
 
-    plot(time, ci1_h.dist_med_avg, 'color', 'r', 'LineWidth', 3.5,'HandleVisibility','off');
-    plot(time, ci2_h.dist_med_avg, 'color', 'g', 'LineWidth', 3.5,'HandleVisibility','off');
-    plot(time, ci3_h.dist_med_avg, 'color', 'b', 'LineWidth', 3.5,'HandleVisibility','off');
+    plot(partitions_1, '-o','color', 'r' ,'LineWidth', plot_line_width,'HandleVisibility','off');
+    plot(partitions_2,  '-o','color', 'g' ,'LineWidth', plot_line_width,'HandleVisibility','off');
+    plot(partitions_3, '-o','color', 'b','LineWidth', plot_line_width,'HandleVisibility','off');
+    
+
+    % Customize x-axis labels
+    xticks([1 2]);                 % Set x-tick positions
+    xticklabels({'LOW', 'HIGH'});   % Replace numeric x-ticks with custom labels
+    
+    % Remove x-axis numeric labels
+    set(gca, 'XTickLabelMode', 'manual', 'XTickMode', 'manual');
+    grid on;
+
+    % MED HIGH
+subplot(2,3,6);
+set(gca, 'Position', pos6); % Adjust the size and position
+    hold on;
+  
+
+
+    plot(time, ci1_h.dist_med_avg, 'color', 'r', 'LineWidth', plot_line_width,'HandleVisibility','off');
+    plot(time, ci2_h.dist_med_avg, 'color', 'g', 'LineWidth', plot_line_width,'HandleVisibility','off');
+    plot(time, ci3_h.dist_med_avg, 'color', 'b', 'LineWidth', plot_line_width,'HandleVisibility','off');
 
     xlim(plotting_window);
     %title(med_high,'FontSize', labels_text_size);
@@ -4595,400 +5250,435 @@ elseif strcmp(experiment_type, 'partitions-2-8') || strcmp(experiment_type, 'erp
     xline(start_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
     xline(end_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
     xline(peak_effect, '--r','HandleVisibility','off', "LineWidth", 1.5);
+  xline(line_plot_effect, '--','HandleVisibility','off', "LineWidth", 1.5);
     xline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
     yline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
 
     %xlabel("Milliseconds", "FontSize",labels_text_size)
     %ylabel(ax_label, "FontSize",labels_text_size)
 
+    % Shade the region before start_peak
+    xregion([-inf, start_peak], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
+    
+    % Shade the region after end_peak
+    xregion([end_peak, inf], 'FaceColor', [0.9 0.9 0.9], 'FaceAlpha', 0.5, 'HandleVisibility', 'off');
 
-    % P1 LOW
-    nexttile
-    hold on;
-    %plot(NaN(1), 'Color', '#0072BD');
-    %plot(NaN(1), 'Color', '#D95319');
-    %plot(NaN(1), 'Color', '#FFFF00');
-    %legend({'Thin', 'Medium', 'Thick'},'Location','bestoutside','FontSize', labels_text_size)
-
-    plot(time, ci1_l.dist_thin_avg, 'color', '#0072BD', 'LineWidth', 3.5,'HandleVisibility','off');
-    plot(time, ci1_l.dist_thin_high, 'LineWidth', 0.01, 'color', '#0072BD','HandleVisibility','off');
-    plot(time, ci1_l.dist_thin_low, 'LineWidth', 0.01, 'color', '#0072BD','HandleVisibility','off');
-    x2 = [time, fliplr(time)];
-    inBetween = [ci1_l.dist_thin_high, fliplr(ci1_l.dist_thin_low)];
-    h = fill(x2, inBetween, [0, 0.447, 0.741], 'HandleVisibility','off', 'LineStyle','none');
-    set(h,'facealpha',.10)
-
-    plot(time, ci1_l.dist_med_avg, 'color', '#D95319', 'LineWidth', 3.5,'HandleVisibility','off');
-    plot(time, ci1_l.dist_med_high, 'LineWidth', 0.01, 'color', '#D95319','HandleVisibility','off');
-    plot(time, ci1_l.dist_med_low, 'LineWidth', 0.01, 'color', '#D95319','HandleVisibility','off');
-    x2 = [time, fliplr(time)];
-    inBetween = [ci1_l.dist_med_high, fliplr(ci1_l.dist_med_low)];
-    h = fill(x2, inBetween, [0.851, 0.325, 0.098], 'HandleVisibility','off', 'LineStyle','none');
-    set(h,'facealpha',.10)
-
-    plot(time, ci1_l.dist_thick_avg, 'color', '#FCD200', 'LineWidth', 3.5,'HandleVisibility','off');
-    plot(time, ci1_l.dist_thick_high, 'LineWidth', 0.01, 'color', '#FCD200','HandleVisibility','off');
-    plot(time, ci1_l.dist_thick_low, 'LineWidth', 0.01, 'color', '#FCD200','HandleVisibility','off');
-    x2 = [time, fliplr(time)];
-    inBetween = [ci1_l.dist_thick_high, fliplr(ci1_l.dist_thick_low)];
-    h = fill(x2, inBetween, [1,0.92,0], 'HandleVisibility','off', 'LineStyle','none');
-    set(h,'facealpha',.175)
-
-    xlim(plotting_window);
-    %title(low_p1,'FontSize', labels_text_size);
-
-    % calculate global min/maxes
-    % P1
-
-    min_yl = min([min(ci1_h.dist_thick_low), min(ci1_h.dist_med_low), min(ci1_h.dist_thin_low)])-0.5;
-    max_yl = max([max(ci1_h.dist_thin_high), max(ci1_h.dist_med_high), max(ci1_h.dist_thick_high)])+0.5;
-
-    min_yh = min([min(ci1_l.dist_thin_low), min(ci1_l.dist_med_low), min(ci1_l.dist_thick_low)])-0.5;
-    max_yh = max([max(ci1_l.dist_thick_high), max(ci1_l.dist_med_high), max(ci1_l.dist_thin_high)])+0.5;
-
-    min_y_p1 = min([min_yl, min_yh]);
-    max_y_p1 = max([max_yl, max_yh]);
-
-
-    % P2 
-
-    min_yl = min([min(ci2_h.dist_thick_low), min(ci2_h.dist_med_low), min(ci2_h.dist_thin_low)])-0.5;
-    max_yl = max([max(ci2_h.dist_thin_high), max(ci2_h.dist_med_high), max(ci2_h.dist_thick_high)])+0.5;
-
-    min_yh = min([min(ci2_l.dist_thin_low), min(ci2_l.dist_med_low), min(ci2_l.dist_thick_low)])-0.5;
-    max_yh = max([max(ci2_l.dist_thick_high), max(ci2_l.dist_med_high), max(ci2_l.dist_thin_high)])+0.5;
-
-    min_y_p2 = min([min_yl, min_yh]);
-    max_y_p2 = max([max_yl, max_yh]);
-
-
-    % P3
-
-    min_yl = min([min(ci3_h.dist_thick_low), min(ci3_h.dist_med_low), min(ci3_h.dist_thin_low)])-0.5;
-    max_yl = max([max(ci3_h.dist_thin_high), max(ci3_h.dist_med_high), max(ci3_h.dist_thick_high)])+0.5;
-
-    min_yh = min([min(ci3_l.dist_thin_low), min(ci3_l.dist_med_low), min(ci3_l.dist_thick_low)])-0.5;
-    max_yh = max([max(ci3_l.dist_thick_high), max(ci3_l.dist_med_high), max(ci3_l.dist_thin_high)])+0.5;
-
-    min_y_p3 = min([min_yl, min_yh]);
-    max_y_p3 = max([max_yl, max_yh]);
-
-    % calculate global min/max for partitions
-    global_min_y = min([min_y_p3, min_y_p2, min_y_p1]);
-    global_max_y = max([max_y_p3, max_y_p2, max_y_p1]);
-
-
-    ylim([global_min_y, global_max_y])
-
-    grid on;
-    hold off;
-
-    xline(start_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
-    xline(end_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
-    xline(peak_effect, '--r','HandleVisibility','off', "LineWidth", 1.5);
-    xline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
-    yline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
-    %xlabel("Milliseconds", "FontSize",labels_text_size)
-    %ylabel(ax_label, "FontSize",labels_text_size)
-    if strcmp(experiment_type, 'erps-23-45-67')
-        la = 'Onsets 2:3';
-    else
-        la = 'Partition 1';
+     hold on;
+    plot(NaN(1), 'r');
+    plot(NaN(1), 'g');
+    plot(NaN(1), 'b');
+    if contains(experiment_type, 'partitions-2-8')
+        legend({'P1-Med', 'P2-Med', 'P3-Med'},'Location','northwest','FontSize', labels_text_size)
+    elseif strcmp(experiment_type, 'erps-23-45-67')
+        legend({'2:3 Med', '4:5 Med', '6:7 Med'},'Location','northwest','FontSize', labels_text_size)
     end
-
-    ylh = ylabel(la, "FontSize",16, "Rotation", 0, 'HorizontalAlignment','right', "FontWeight", "bold");
-    ylh.Position(2) = 2.75;
-    ylh.Position(1) = -220;
-
-    % P1 HIGH
-    nexttile
-    hold on;
-    plot(NaN(1), 'Color', '#0072BD');
-    plot(NaN(1), 'Color', '#D95319');
-    plot(NaN(1), 'Color', '#FFFF00');
-    legend({'Thin', 'Medium', 'Thick'},'Location','bestoutside','FontSize', labels_text_size)
-
-    plot(time, ci1_h.dist_thin_avg, 'color','#0072BD', 'LineWidth', 3.5,'HandleVisibility','off');
-    plot(time, ci1_h.dist_thin_high, 'LineWidth', 0.01, 'color', '#0072BD','HandleVisibility','off');
-    plot(time, ci1_h.dist_thin_low, 'LineWidth', 0.01, 'color', '#0072BD','HandleVisibility','off');
-    x2 = [time, fliplr(time)];
-    inBetween = [ci1_h.dist_thin_high, fliplr(ci1_h.dist_thin_low)];
-    h = fill(x2, inBetween, [0, 0.447, 0.741], 'HandleVisibility','off', 'LineStyle','none');
-    set(h,'facealpha',.10)
-
-    plot(time, ci1_h.dist_med_avg, 'color', '#D95319', 'LineWidth', 3.5,'HandleVisibility','off');
-    plot(time, ci1_h.dist_med_high, 'LineWidth', 0.01, 'color', '#D95319','HandleVisibility','off');
-    plot(time, ci1_h.dist_med_low, 'LineWidth', 0.01, 'color', '#D95319','HandleVisibility','off');
-    x2 = [time, fliplr(time)];
-    inBetween = [ci1_h.dist_med_high, fliplr(ci1_h.dist_med_low)];
-    h = fill(x2, inBetween, [0.851, 0.325, 0.098], 'HandleVisibility','off', 'LineStyle','none');
-    set(h,'facealpha',.10)
-
-    plot(time, ci1_h.dist_thick_avg, 'color', '#FCD200', 'LineWidth', 3.5,'HandleVisibility','off');
-    plot(time, ci1_h.dist_thick_high, 'LineWidth', 0.01, 'color', '#FCD200','HandleVisibility','off');
-    plot(time, ci1_h.dist_thick_low, 'LineWidth', 0.01, 'color', '#FCD200','HandleVisibility','off');
-    x2 = [time, fliplr(time)];
-    inBetween = [ci1_h.dist_thick_high, fliplr(ci1_h.dist_thick_low)];
-    h = fill(x2, inBetween, [1,0.92,0], 'HandleVisibility','off', 'LineStyle','none');
-    set(h,'facealpha',.175)
-
-    xlim(plotting_window);
-    %title(high_p1,'FontSize', labels_text_size);
-
-    ylim([global_min_y, global_max_y])
-
-    grid on;
-    hold off;
-
-    xline(start_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
-    xline(end_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
-    xline(peak_effect, '--r','HandleVisibility','off', "LineWidth", 1.5);
-    xline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
-    yline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
-    %xlabel("Milliseconds", "FontSize",labels_text_size)
-    %ylabel(ax_label, "FontSize",labels_text_size)
-
-
-    % P2 LOW
-    nexttile
-    hold on;
-    %plot(NaN(1), 'Color', '#0072BD');
-    %plot(NaN(1), 'Color', '#D95319');
-    %plot(NaN(1), 'Color', '#FFFF00');
-    %legend({'Thin', 'Medium', 'Thick'},'Location','bestoutside','FontSize', labels_text_size)
-
-    plot(time, ci2_l.dist_thin_avg, 'Color', '#0072BD', 'LineWidth', 3.5,'HandleVisibility','off');
-    plot(time, ci2_l.dist_thin_high, 'LineWidth', 0.01, 'Color', '#0072BD','HandleVisibility','off');
-    plot(time, ci2_l.dist_thin_low, 'LineWidth', 0.01, 'Color', '#0072BD','HandleVisibility','off');
-    x2 = [time, fliplr(time)];
-    inBetween = [ci2_l.dist_thin_high, fliplr(ci2_l.dist_thin_low)];
-    h = fill(x2, inBetween, [0, 0.447, 0.741], 'HandleVisibility','off', 'LineStyle','none');
-    set(h,'facealpha',.10)
-
-    plot(time, ci2_l.dist_med_avg, 'color', '#D95319', 'LineWidth', 3.5,'HandleVisibility','off');
-    plot(time, ci2_l.dist_med_high, 'LineWidth', 0.01, 'color', '#D95319','HandleVisibility','off');
-    plot(time, ci2_l.dist_med_low, 'LineWidth', 0.01, 'color', '#D95319','HandleVisibility','off');
-    x2 = [time, fliplr(time)];
-    inBetween = [ci2_l.dist_med_high, fliplr(ci2_l.dist_med_low)];
-    h = fill(x2, inBetween, [0.851, 0.325, 0.098], 'HandleVisibility','off', 'LineStyle','none');
-    set(h,'facealpha',.10)
-
-    plot(time, ci2_l.dist_thick_avg, 'color', '#FCD200', 'LineWidth', 3.5,'HandleVisibility','off');
-    plot(time, ci2_l.dist_thick_high, 'LineWidth', 0.01, 'color', '#FCD200','HandleVisibility','off');
-    plot(time, ci2_l.dist_thick_low, 'LineWidth', 0.01, 'color', '#FCD200','HandleVisibility','off');
-    x2 = [time, fliplr(time)];
-    inBetween = [ci2_l.dist_thick_high, fliplr(ci2_l.dist_thick_low)];
-    h = fill(x2, inBetween, [1,0.92,0], 'HandleVisibility','off', 'LineStyle','none');
-    set(h,'facealpha',.175)
-
-    xlim(plotting_window);
-    %title(low_p2,'FontSize', labels_text_size);
-
-    ylim([global_min_y, global_max_y])
-
-    grid on;
-    hold off;
-
-    xline(start_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
-    xline(end_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
-    xline(peak_effect, '--r','HandleVisibility','off', "LineWidth", 1.5);
-    xline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
-    yline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
-
-    %xlabel("Milliseconds", "FontSize",labels_text_size)
-    %ylabel(ax_label, "FontSize",labels_text_size)
-    if strcmp(experiment_type, 'erps-23-45-67')
-        la = 'Onsets 4:5';
-    else
-        la = 'Partition 2';
-    end
-
-
-    ylh = ylabel(la, "FontSize",16, "Rotation", 0, 'HorizontalAlignment','right', "FontWeight", "bold");
-    ylh.Position(2) = 2.75;
-    ylh.Position(1) = -220;
-
-    % P2 HIGH
-    nexttile
-    hold on;
-    plot(NaN(1), 'Color', '#0072BD');
-    plot(NaN(1), 'Color', '#D95319');
-    plot(NaN(1), 'Color', '#FFFF00');
-    legend({'Thin', 'Medium', 'Thick'},'Location','bestoutside','FontSize', labels_text_size)
-
-    plot(time, ci2_h.dist_thin_avg, 'Color', '#0072BD', 'LineWidth', 3.5,'HandleVisibility','off');
-    plot(time, ci2_h.dist_thin_high, 'LineWidth', 0.01, 'Color', '#0072BD','HandleVisibility','off');
-    plot(time, ci2_h.dist_thin_low, 'LineWidth', 0.01, 'Color', '#0072BD','HandleVisibility','off');
-    x2 = [time, fliplr(time)];
-    inBetween = [ci2_h.dist_thin_high, fliplr(ci2_h.dist_thin_low)];
-    h = fill(x2, inBetween, [0, 0.447, 0.741], 'HandleVisibility','off', 'LineStyle','none');
-    set(h,'facealpha',.10)
-
-    plot(time, ci2_h.dist_med_avg, 'color', '#D95319', 'LineWidth', 3.5,'HandleVisibility','off');
-    plot(time, ci2_h.dist_med_high, 'LineWidth', 0.01, 'color', '#D95319','HandleVisibility','off');
-    plot(time, ci2_h.dist_med_low, 'LineWidth', 0.01, 'color', '#D95319','HandleVisibility','off');
-    x2 = [time, fliplr(time)];
-    inBetween = [ci2_h.dist_med_high, fliplr(ci2_h.dist_med_low)];
-    h = fill(x2, inBetween, [0.851, 0.325, 0.098], 'HandleVisibility','off', 'LineStyle','none');
-    set(h,'facealpha',.10)
-
-    plot(time, ci2_h.dist_thick_avg, 'color', '#FCD200', 'LineWidth', 3.5,'HandleVisibility','off');
-    plot(time, ci2_h.dist_thick_high, 'LineWidth', 0.01, 'color', '#FCD200','HandleVisibility','off');
-    plot(time, ci2_h.dist_thick_low, 'LineWidth', 0.01, 'color', '#FCD200','HandleVisibility','off');
-    x2 = [time, fliplr(time)];
-    inBetween = [ci2_h.dist_thick_high, fliplr(ci2_h.dist_thick_low)];
-    h = fill(x2, inBetween, [1,0.92,0], 'HandleVisibility','off', 'LineStyle','none');
-    set(h,'facealpha',.175)
-
-    xlim(plotting_window);
-    %title(high_p2,'FontSize', labels_text_size);
-
-
-    ylim([global_min_y, global_max_y])
-
-    grid on;
-    hold off;
-
-    xline(start_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
-    xline(end_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
-    xline(peak_effect, '--r','HandleVisibility','off', "LineWidth", 1.5);
-    xline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
-    yline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
-
-    %xlabel("Milliseconds", "FontSize",labels_text_size)
-    %ylabel(ax_label, "FontSize",labels_text_size)
-
-
-    % P3 LOW
-    nexttile
-    hold on;
-    %plot(NaN(1), 'Color', '#0072BD');
-    %plot(NaN(1), 'Color', '#D95319');
-    %plot(NaN(1), 'Color', '#FFFF00');
-    %legend({'Thin', 'Medium', 'Thick'},'Location','bestoutside','FontSize', labels_text_size)
-
-    plot(time, ci3_l.dist_thin_avg, 'Color', '#0072BD', 'LineWidth', 3.5,'HandleVisibility','off');
-    plot(time, ci3_l.dist_thin_high, 'LineWidth', 0.01, 'Color', '#0072BD','HandleVisibility','off');
-    plot(time, ci3_l.dist_thin_low, 'LineWidth', 0.01, 'Color', '#0072BD','HandleVisibility','off');
-    x2 = [time, fliplr(time)];
-    inBetween = [ci3_l.dist_thin_high, fliplr(ci3_l.dist_thin_low)];
-    h = fill(x2, inBetween, [0, 0.447, 0.741], 'HandleVisibility','off', 'LineStyle','none');
-    set(h,'facealpha',.10)
-
-    plot(time, ci3_l.dist_med_avg, 'color', '#D95319', 'LineWidth', 3.5,'HandleVisibility','off');
-    plot(time, ci3_l.dist_med_high, 'LineWidth', 0.01, 'color', '#D95319','HandleVisibility','off');
-    plot(time, ci3_l.dist_med_low, 'LineWidth', 0.01, 'color', '#D95319','HandleVisibility','off');
-    x2 = [time, fliplr(time)];
-    inBetween = [ci3_l.dist_med_high, fliplr(ci3_l.dist_med_low)];
-    h = fill(x2, inBetween, [0.851, 0.325, 0.098], 'HandleVisibility','off', 'LineStyle','none');
-    set(h,'facealpha',.10)
-
-    plot(time, ci3_l.dist_thick_avg, 'color', '#FCD200', 'LineWidth', 3.5,'HandleVisibility','off');
-    plot(time, ci3_l.dist_thick_high, 'LineWidth', 0.01, 'color', '#FCD200','HandleVisibility','off');
-    plot(time, ci3_l.dist_thick_low, 'LineWidth', 0.01, 'color', '#FCD200','HandleVisibility','off');
-    x2 = [time, fliplr(time)];
-    inBetween = [ci3_l.dist_thick_high, fliplr(ci3_l.dist_thick_low)];
-    h = fill(x2, inBetween, [1,0.92,0], 'HandleVisibility','off', 'LineStyle','none');
-    set(h,'facealpha',.175)
-
-    xlim(plotting_window);
-    %title(low_p3,'FontSize', labels_text_size);
-
-    ylim([global_min_y, global_max_y])
-
-    grid on;
-    hold off;
-
-    xline(start_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
-    xline(end_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
-    xline(peak_effect, '--r','HandleVisibility','off', "LineWidth", 1.5);
-    xline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
-    yline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
-
-    %xlabel("Milliseconds", "FontSize",labels_text_size)
-    %ylabel(ax_label, "FontSize",labels_text_size)
-
-    if strcmp(experiment_type, 'erps-23-45-67')
-        la = 'Onsets 6:7';
-    else
-        la = 'Partition 3';
-    end
-
-    ylh = ylabel(la, "FontSize",16, "Rotation", 0, 'HorizontalAlignment','right', "FontWeight", "bold");
-    ylh.Position(2) = 2.75;
-    ylh.Position(1) = -220;
-
-    % P3 HIGH
-    nexttile
-    hold on;
-    plot(NaN(1), 'Color', '#0072BD');
-    plot(NaN(1), 'Color', '#D95319');
-    plot(NaN(1), 'Color', '#FFFF00');
-    legend({'Thin', 'Medium', 'Thick'},'Location','bestoutside','FontSize', labels_text_size)
-
-    plot(time, ci3_h.dist_thin_avg, 'Color', '#0072BD', 'LineWidth', 3.5,'HandleVisibility','off');
-    plot(time, ci3_h.dist_thin_high, 'LineWidth', 0.01, 'Color', '#0072BD','HandleVisibility','off');
-    plot(time, ci3_h.dist_thin_low, 'LineWidth', 0.01, 'Color', '#0072BD','HandleVisibility','off');
-    x2 = [time, fliplr(time)];
-    inBetween = [ci3_h.dist_thin_high, fliplr(ci3_h.dist_thin_low)];
-    h =  fill(x2, inBetween, [0, 0.447, 0.741], 'HandleVisibility','off', 'LineStyle','none');
-    set(h,'facealpha',.10)
-
-    plot(time, ci3_h.dist_med_avg, 'color', '#D95319', 'LineWidth', 3.5,'HandleVisibility','off');
-    plot(time, ci3_h.dist_med_high, 'LineWidth', 0.01, 'color', '#D95319','HandleVisibility','off');
-    plot(time, ci3_h.dist_med_low, 'LineWidth', 0.01, 'color', '#D95319','HandleVisibility','off');
-    x2 = [time, fliplr(time)];
-    inBetween = [ci3_h.dist_med_high, fliplr(ci3_h.dist_med_low)];
-    h = fill(x2, inBetween, [0.851, 0.325, 0.098], 'HandleVisibility','off', 'LineStyle','none');
-    set(h,'facealpha',.10)
-
-    plot(time, ci3_h.dist_thick_avg, 'color', '#FCD200', 'LineWidth',3.5,'HandleVisibility','off');
-    plot(time, ci3_h.dist_thick_high, 'LineWidth', 0.01, 'color', '#FCD200','HandleVisibility','off');
-    plot(time, ci3_h.dist_thick_low, 'LineWidth', 0.01, 'color', '#FCD200','HandleVisibility','off');
-    x2 = [time, fliplr(time)];
-    inBetween = [ci3_h.dist_thick_high, fliplr(ci3_h.dist_thick_low)];
-    h = fill(x2, inBetween, [1,0.92,0], 'HandleVisibility','off', 'LineStyle','none');
-    set(h,'facealpha',.175)
-
-    xlim(plotting_window);
-    %title(high_p3,'FontSize', labels_text_size);
-
-
-    ylim([global_min_y, global_max_y])
-
-    grid on;
-    hold off;
-
-    xline(start_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
-    xline(end_peak, '-','HandleVisibility','off',"LineWidth", 1.5);
-    xline(peak_effect, '--r','HandleVisibility','off', "LineWidth", 1.5);
-    xline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
-    yline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
-
-    %xlabel("Milliseconds", "FontSize",labels_text_size)
-    %ylabel(ax_label, "FontSize",labels_text_size)
-        
+    if plot_thin_med_thick
+    
+        % P1 LOW
+        nexttile
+        hold on;
+        %plot(NaN(1), 'Color', '#0072BD');
+        %plot(NaN(1), 'Color', '#D95319');
+        %plot(NaN(1), 'Color', '#FFFF00');
+        %legend({'Thin', 'Medium', 'Thick'},'Location','bestoutside','FontSize', labels_text_size)
+    
+        plot(time, ci1_l.dist_thin_avg, 'color', '#0072BD', 'LineWidth', plot_line_width,'HandleVisibility','off');
+        plot(time, ci1_l.dist_thin_high, 'LineWidth', 0.01, 'color', '#0072BD','HandleVisibility','off');
+        plot(time, ci1_l.dist_thin_low, 'LineWidth', 0.01, 'color', '#0072BD','HandleVisibility','off');
+        x2 = [time, fliplr(time)];
+        inBetween = [ci1_l.dist_thin_high, fliplr(ci1_l.dist_thin_low)];
+        h = fill(x2, inBetween, [0, 0.447, 0.741], 'HandleVisibility','off', 'LineStyle','none');
+        set(h,'facealpha',.10)
+    
+        plot(time, ci1_l.dist_med_avg, 'color', '#D95319', 'LineWidth', plot_line_width,'HandleVisibility','off');
+        plot(time, ci1_l.dist_med_high, 'LineWidth', 0.01, 'color', '#D95319','HandleVisibility','off');
+        plot(time, ci1_l.dist_med_low, 'LineWidth', 0.01, 'color', '#D95319','HandleVisibility','off');
+        x2 = [time, fliplr(time)];
+        inBetween = [ci1_l.dist_med_high, fliplr(ci1_l.dist_med_low)];
+        h = fill(x2, inBetween, [0.851, 0.325, 0.098], 'HandleVisibility','off', 'LineStyle','none');
+        set(h,'facealpha',.10)
+    
+        plot(time, ci1_l.dist_thick_avg, 'color', '#FCD200', 'LineWidth', plot_line_width,'HandleVisibility','off');
+        plot(time, ci1_l.dist_thick_high, 'LineWidth', 0.01, 'color', '#FCD200','HandleVisibility','off');
+        plot(time, ci1_l.dist_thick_low, 'LineWidth', 0.01, 'color', '#FCD200','HandleVisibility','off');
+        x2 = [time, fliplr(time)];
+        inBetween = [ci1_l.dist_thick_high, fliplr(ci1_l.dist_thick_low)];
+        h = fill(x2, inBetween, [1,0.92,0], 'HandleVisibility','off', 'LineStyle','none');
+        set(h,'facealpha',.175)
+    
+        xlim(plotting_window);
+        %title(low_p1,'FontSize', labels_text_size);
+    
+        % calculate global min/maxes
+        % P1
+    
+        min_yl = min([min(ci1_h.dist_thick_low), min(ci1_h.dist_med_low), min(ci1_h.dist_thin_low)])-0.5;
+        max_yl = max([max(ci1_h.dist_thin_high), max(ci1_h.dist_med_high), max(ci1_h.dist_thick_high)])+0.5;
+    
+        min_yh = min([min(ci1_l.dist_thin_low), min(ci1_l.dist_med_low), min(ci1_l.dist_thick_low)])-0.5;
+        max_yh = max([max(ci1_l.dist_thick_high), max(ci1_l.dist_med_high), max(ci1_l.dist_thin_high)])+0.5;
+    
+        min_y_p1 = min([min_yl, min_yh]);
+        max_y_p1 = max([max_yl, max_yh]);
+    
+    
+        % P2 
+    
+        min_yl = min([min(ci2_h.dist_thick_low), min(ci2_h.dist_med_low), min(ci2_h.dist_thin_low)])-0.5;
+        max_yl = max([max(ci2_h.dist_thin_high), max(ci2_h.dist_med_high), max(ci2_h.dist_thick_high)])+0.5;
+    
+        min_yh = min([min(ci2_l.dist_thin_low), min(ci2_l.dist_med_low), min(ci2_l.dist_thick_low)])-0.5;
+        max_yh = max([max(ci2_l.dist_thick_high), max(ci2_l.dist_med_high), max(ci2_l.dist_thin_high)])+0.5;
+    
+        min_y_p2 = min([min_yl, min_yh]);
+        max_y_p2 = max([max_yl, max_yh]);
+    
+    
+        % P3
+    
+        min_yl = min([min(ci3_h.dist_thick_low), min(ci3_h.dist_med_low), min(ci3_h.dist_thin_low)])-0.5;
+        max_yl = max([max(ci3_h.dist_thin_high), max(ci3_h.dist_med_high), max(ci3_h.dist_thick_high)])+0.5;
+    
+        min_yh = min([min(ci3_l.dist_thin_low), min(ci3_l.dist_med_low), min(ci3_l.dist_thick_low)])-0.5;
+        max_yh = max([max(ci3_l.dist_thick_high), max(ci3_l.dist_med_high), max(ci3_l.dist_thin_high)])+0.5;
+    
+        min_y_p3 = min([min_yl, min_yh]);
+        max_y_p3 = max([max_yl, max_yh]);
+    
+        % calculate global min/max for partitions
+        global_min_y = min([min_y_p3, min_y_p2, min_y_p1]);
+        global_max_y = max([max_y_p3, max_y_p2, max_y_p1]);
+    
+    
+        ylim([global_min_y, global_max_y])
+    
+        grid on;
+        hold off;
+    
+        xline(start_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
+        xline(end_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
+        xline(peak_effect, '--r','HandleVisibility','off', "LineWidth", 1.5);
+        xline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
+        yline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
+        %xlabel("Milliseconds", "FontSize",labels_text_size)
+        %ylabel(ax_label, "FontSize",labels_text_size)
+        if strcmp(experiment_type, 'erps-23-45-67')
+            la = 'Onsets 2:3';
+        else
+            la = 'Partition 1';
+        end
+    
+        ylh = ylabel(la, "FontSize",16, "Rotation", 0, 'HorizontalAlignment','right', "FontWeight", "bold");
+        ylh.Position(2) = 2.75;
+        ylh.Position(1) = -220;
+    
+        % P1 HIGH
+        nexttile
+        nexttile
+        hold on;
+        plot(NaN(1), 'Color', '#0072BD');
+        plot(NaN(1), 'Color', '#D95319');
+        plot(NaN(1), 'Color', '#FFFF00');
+        legend({'Thin', 'Medium', 'Thick'},'Location','bestoutside','FontSize', labels_text_size)
+    
+        plot(time, ci1_h.dist_thin_avg, 'color','#0072BD', 'LineWidth', plot_line_width,'HandleVisibility','off');
+        plot(time, ci1_h.dist_thin_high, 'LineWidth', 0.01, 'color', '#0072BD','HandleVisibility','off');
+        plot(time, ci1_h.dist_thin_low, 'LineWidth', 0.01, 'color', '#0072BD','HandleVisibility','off');
+        x2 = [time, fliplr(time)];
+        inBetween = [ci1_h.dist_thin_high, fliplr(ci1_h.dist_thin_low)];
+        h = fill(x2, inBetween, [0, 0.447, 0.741], 'HandleVisibility','off', 'LineStyle','none');
+        set(h,'facealpha',.10)
+    
+        plot(time, ci1_h.dist_med_avg, 'color', '#D95319', 'LineWidth', plot_line_width,'HandleVisibility','off');
+        plot(time, ci1_h.dist_med_high, 'LineWidth', 0.01, 'color', '#D95319','HandleVisibility','off');
+        plot(time, ci1_h.dist_med_low, 'LineWidth', 0.01, 'color', '#D95319','HandleVisibility','off');
+        x2 = [time, fliplr(time)];
+        inBetween = [ci1_h.dist_med_high, fliplr(ci1_h.dist_med_low)];
+        h = fill(x2, inBetween, [0.851, 0.325, 0.098], 'HandleVisibility','off', 'LineStyle','none');
+        set(h,'facealpha',.10)
+    
+        plot(time, ci1_h.dist_thick_avg, 'color', '#FCD200', 'LineWidth', plot_line_width,'HandleVisibility','off');
+        plot(time, ci1_h.dist_thick_high, 'LineWidth', 0.01, 'color', '#FCD200','HandleVisibility','off');
+        plot(time, ci1_h.dist_thick_low, 'LineWidth', 0.01, 'color', '#FCD200','HandleVisibility','off');
+        x2 = [time, fliplr(time)];
+        inBetween = [ci1_h.dist_thick_high, fliplr(ci1_h.dist_thick_low)];
+        h = fill(x2, inBetween, [1,0.92,0], 'HandleVisibility','off', 'LineStyle','none');
+        set(h,'facealpha',.175)
+    
+        xlim(plotting_window);
+        %title(high_p1,'FontSize', labels_text_size);
+    
+        ylim([global_min_y, global_max_y])
+    
+        grid on;
+        hold off;
+    
+        xline(start_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
+        xline(end_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
+        xline(peak_effect, '--r','HandleVisibility','off', "LineWidth", 1.5);
+        xline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
+        yline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
+        %xlabel("Milliseconds", "FontSize",labels_text_size)
+        %ylabel(ax_label, "FontSize",labels_text_size)
+    
+    
+        % P2 LOW
+        nexttile
+        hold on;
+        %plot(NaN(1), 'Color', '#0072BD');
+        %plot(NaN(1), 'Color', '#D95319');
+        %plot(NaN(1), 'Color', '#FFFF00');
+        %legend({'Thin', 'Medium', 'Thick'},'Location','bestoutside','FontSize', labels_text_size)
+    
+        plot(time, ci2_l.dist_thin_avg, 'Color', '#0072BD', 'LineWidth', plot_line_width,'HandleVisibility','off');
+        plot(time, ci2_l.dist_thin_high, 'LineWidth', 0.01, 'Color', '#0072BD','HandleVisibility','off');
+        plot(time, ci2_l.dist_thin_low, 'LineWidth', 0.01, 'Color', '#0072BD','HandleVisibility','off');
+        x2 = [time, fliplr(time)];
+        inBetween = [ci2_l.dist_thin_high, fliplr(ci2_l.dist_thin_low)];
+        h = fill(x2, inBetween, [0, 0.447, 0.741], 'HandleVisibility','off', 'LineStyle','none');
+        set(h,'facealpha',.10)
+    
+        plot(time, ci2_l.dist_med_avg, 'color', '#D95319', 'LineWidth', plot_line_width,'HandleVisibility','off');
+        plot(time, ci2_l.dist_med_high, 'LineWidth', 0.01, 'color', '#D95319','HandleVisibility','off');
+        plot(time, ci2_l.dist_med_low, 'LineWidth', 0.01, 'color', '#D95319','HandleVisibility','off');
+        x2 = [time, fliplr(time)];
+        inBetween = [ci2_l.dist_med_high, fliplr(ci2_l.dist_med_low)];
+        h = fill(x2, inBetween, [0.851, 0.325, 0.098], 'HandleVisibility','off', 'LineStyle','none');
+        set(h,'facealpha',.10)
+    
+        plot(time, ci2_l.dist_thick_avg, 'color', '#FCD200', 'LineWidth', plot_line_width,'HandleVisibility','off');
+        plot(time, ci2_l.dist_thick_high, 'LineWidth', 0.01, 'color', '#FCD200','HandleVisibility','off');
+        plot(time, ci2_l.dist_thick_low, 'LineWidth', 0.01, 'color', '#FCD200','HandleVisibility','off');
+        x2 = [time, fliplr(time)];
+        inBetween = [ci2_l.dist_thick_high, fliplr(ci2_l.dist_thick_low)];
+        h = fill(x2, inBetween, [1,0.92,0], 'HandleVisibility','off', 'LineStyle','none');
+        set(h,'facealpha',.175)
+    
+        xlim(plotting_window);
+        %title(low_p2,'FontSize', labels_text_size);
+    
+        ylim([global_min_y, global_max_y])
+    
+        grid on;
+        hold off;
+    
+        xline(start_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
+        xline(end_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
+        xline(peak_effect, '--r','HandleVisibility','off', "LineWidth", 1.5);
+        xline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
+        yline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
+    
+        %xlabel("Milliseconds", "FontSize",labels_text_size)
+        %ylabel(ax_label, "FontSize",labels_text_size)
+        if strcmp(experiment_type, 'erps-23-45-67')
+            la = 'Onsets 4:5';
+        else
+            la = 'Partition 2';
+        end
+    
+    
+        ylh = ylabel(la, "FontSize",16, "Rotation", 0, 'HorizontalAlignment','right', "FontWeight", "bold");
+        ylh.Position(2) = 2.75;
+        ylh.Position(1) = -220;
+    
+        % P2 HIGH
+        nexttile
+        nexttile
+        hold on;
+        plot(NaN(1), 'Color', '#0072BD');
+        plot(NaN(1), 'Color', '#D95319');
+        plot(NaN(1), 'Color', '#FFFF00');
+        legend({'Thin', 'Medium', 'Thick'},'Location','bestoutside','FontSize', labels_text_size)
+    
+        plot(time, ci2_h.dist_thin_avg, 'Color', '#0072BD', 'LineWidth', plot_line_width,'HandleVisibility','off');
+        plot(time, ci2_h.dist_thin_high, 'LineWidth', 0.01, 'Color', '#0072BD','HandleVisibility','off');
+        plot(time, ci2_h.dist_thin_low, 'LineWidth', 0.01, 'Color', '#0072BD','HandleVisibility','off');
+        x2 = [time, fliplr(time)];
+        inBetween = [ci2_h.dist_thin_high, fliplr(ci2_h.dist_thin_low)];
+        h = fill(x2, inBetween, [0, 0.447, 0.741], 'HandleVisibility','off', 'LineStyle','none');
+        set(h,'facealpha',.10)
+    
+        plot(time, ci2_h.dist_med_avg, 'color', '#D95319', 'LineWidth', plot_line_width,'HandleVisibility','off');
+        plot(time, ci2_h.dist_med_high, 'LineWidth', 0.01, 'color', '#D95319','HandleVisibility','off');
+        plot(time, ci2_h.dist_med_low, 'LineWidth', 0.01, 'color', '#D95319','HandleVisibility','off');
+        x2 = [time, fliplr(time)];
+        inBetween = [ci2_h.dist_med_high, fliplr(ci2_h.dist_med_low)];
+        h = fill(x2, inBetween, [0.851, 0.325, 0.098], 'HandleVisibility','off', 'LineStyle','none');
+        set(h,'facealpha',.10)
+    
+        plot(time, ci2_h.dist_thick_avg, 'color', '#FCD200', 'LineWidth', plot_line_width,'HandleVisibility','off');
+        plot(time, ci2_h.dist_thick_high, 'LineWidth', 0.01, 'color', '#FCD200','HandleVisibility','off');
+        plot(time, ci2_h.dist_thick_low, 'LineWidth', 0.01, 'color', '#FCD200','HandleVisibility','off');
+        x2 = [time, fliplr(time)];
+        inBetween = [ci2_h.dist_thick_high, fliplr(ci2_h.dist_thick_low)];
+        h = fill(x2, inBetween, [1,0.92,0], 'HandleVisibility','off', 'LineStyle','none');
+        set(h,'facealpha',.175)
+    
+        xlim(plotting_window);
+        %title(high_p2,'FontSize', labels_text_size);
+    
+    
+        ylim([global_min_y, global_max_y])
+    
+        grid on;
+        hold off;
+    
+        xline(start_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
+        xline(end_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
+        xline(peak_effect, '--r','HandleVisibility','off', "LineWidth", 1.5);
+        xline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
+        yline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
+    
+        %xlabel("Milliseconds", "FontSize",labels_text_size)
+        %ylabel(ax_label, "FontSize",labels_text_size)
+    
+    
+        % P3 LOW
+        nexttile
+        hold on;
+        %plot(NaN(1), 'Color', '#0072BD');
+        %plot(NaN(1), 'Color', '#D95319');
+        %plot(NaN(1), 'Color', '#FFFF00');
+        %legend({'Thin', 'Medium', 'Thick'},'Location','bestoutside','FontSize', labels_text_size)
+    
+        plot(time, ci3_l.dist_thin_avg, 'Color', '#0072BD', 'LineWidth', plot_line_width,'HandleVisibility','off');
+        plot(time, ci3_l.dist_thin_high, 'LineWidth', 0.01, 'Color', '#0072BD','HandleVisibility','off');
+        plot(time, ci3_l.dist_thin_low, 'LineWidth', 0.01, 'Color', '#0072BD','HandleVisibility','off');
+        x2 = [time, fliplr(time)];
+        inBetween = [ci3_l.dist_thin_high, fliplr(ci3_l.dist_thin_low)];
+        h = fill(x2, inBetween, [0, 0.447, 0.741], 'HandleVisibility','off', 'LineStyle','none');
+        set(h,'facealpha',.10)
+    
+        plot(time, ci3_l.dist_med_avg, 'color', '#D95319', 'LineWidth', plot_line_width,'HandleVisibility','off');
+        plot(time, ci3_l.dist_med_high, 'LineWidth', 0.01, 'color', '#D95319','HandleVisibility','off');
+        plot(time, ci3_l.dist_med_low, 'LineWidth', 0.01, 'color', '#D95319','HandleVisibility','off');
+        x2 = [time, fliplr(time)];
+        inBetween = [ci3_l.dist_med_high, fliplr(ci3_l.dist_med_low)];
+        h = fill(x2, inBetween, [0.851, 0.325, 0.098], 'HandleVisibility','off', 'LineStyle','none');
+        set(h,'facealpha',.10)
+    
+        plot(time, ci3_l.dist_thick_avg, 'color', '#FCD200', 'LineWidth', plot_line_width,'HandleVisibility','off');
+        plot(time, ci3_l.dist_thick_high, 'LineWidth', 0.01, 'color', '#FCD200','HandleVisibility','off');
+        plot(time, ci3_l.dist_thick_low, 'LineWidth', 0.01, 'color', '#FCD200','HandleVisibility','off');
+        x2 = [time, fliplr(time)];
+        inBetween = [ci3_l.dist_thick_high, fliplr(ci3_l.dist_thick_low)];
+        h = fill(x2, inBetween, [1,0.92,0], 'HandleVisibility','off', 'LineStyle','none');
+        set(h,'facealpha',.175)
+    
+        xlim(plotting_window);
+        %title(low_p3,'FontSize', labels_text_size);
+    
+        ylim([global_min_y, global_max_y])
+    
+        grid on;
+        hold off;
+    
+        xline(start_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
+        xline(end_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
+        xline(peak_effect, '--r','HandleVisibility','off', "LineWidth", 1.5);
+        xline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
+        yline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
+    
+        %xlabel("Milliseconds", "FontSize",labels_text_size)
+        %ylabel(ax_label, "FontSize",labels_text_size)
+    
+        if strcmp(experiment_type, 'erps-23-45-67')
+            la = 'Onsets 6:7';
+        else
+            la = 'Partition 3';
+        end
+    
+        ylh = ylabel(la, "FontSize",16, "Rotation", 0, 'HorizontalAlignment','right', "FontWeight", "bold");
+        ylh.Position(2) = 2.75;
+        ylh.Position(1) = -220;
+    
+        % P3 HIGH
+        nexttile
+        nexttile
+        hold on;
+        plot(NaN(1), 'Color', '#0072BD');
+        plot(NaN(1), 'Color', '#D95319');
+        plot(NaN(1), 'Color', '#FFFF00');
+        legend({'Thin', 'Medium', 'Thick'},'Location','bestoutside','FontSize', labels_text_size)
+    
+        plot(time, ci3_h.dist_thin_avg, 'Color', '#0072BD', 'LineWidth', plot_line_width,'HandleVisibility','off');
+        plot(time, ci3_h.dist_thin_high, 'LineWidth', 0.01, 'Color', '#0072BD','HandleVisibility','off');
+        plot(time, ci3_h.dist_thin_low, 'LineWidth', 0.01, 'Color', '#0072BD','HandleVisibility','off');
+        x2 = [time, fliplr(time)];
+        inBetween = [ci3_h.dist_thin_high, fliplr(ci3_h.dist_thin_low)];
+        h =  fill(x2, inBetween, [0, 0.447, 0.741], 'HandleVisibility','off', 'LineStyle','none');
+        set(h,'facealpha',.10)
+    
+        plot(time, ci3_h.dist_med_avg, 'color', '#D95319', 'LineWidth', plot_line_width,'HandleVisibility','off');
+        plot(time, ci3_h.dist_med_high, 'LineWidth', 0.01, 'color', '#D95319','HandleVisibility','off');
+        plot(time, ci3_h.dist_med_low, 'LineWidth', 0.01, 'color', '#D95319','HandleVisibility','off');
+        x2 = [time, fliplr(time)];
+        inBetween = [ci3_h.dist_med_high, fliplr(ci3_h.dist_med_low)];
+        h = fill(x2, inBetween, [0.851, 0.325, 0.098], 'HandleVisibility','off', 'LineStyle','none');
+        set(h,'facealpha',.10)
+    
+        plot(time, ci3_h.dist_thick_avg, 'color', '#FCD200', 'LineWidth',3.5,'HandleVisibility','off');
+        plot(time, ci3_h.dist_thick_high, 'LineWidth', 0.01, 'color', '#FCD200','HandleVisibility','off');
+        plot(time, ci3_h.dist_thick_low, 'LineWidth', 0.01, 'color', '#FCD200','HandleVisibility','off');
+        x2 = [time, fliplr(time)];
+        inBetween = [ci3_h.dist_thick_high, fliplr(ci3_h.dist_thick_low)];
+        h = fill(x2, inBetween, [1,0.92,0], 'HandleVisibility','off', 'LineStyle','none');
+        set(h,'facealpha',.175)
+    
+        xlim(plotting_window);
+        %title(high_p3,'FontSize', labels_text_size);
+    
+    
+        ylim([global_min_y, global_max_y])
+    
+        grid on;
+        hold off;
+    
+        xline(start_peak, '-','HandleVisibility','off', "LineWidth", 1.5);
+        xline(end_peak, '-','HandleVisibility','off',"LineWidth", 1.5);
+        xline(peak_effect, '--r','HandleVisibility','off', "LineWidth", 1.5);
+        xline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
+        yline(0, '--b','HandleVisibility','off', "LineWidth", 1.5)
+    
+        %xlabel("Milliseconds", "FontSize",labels_text_size)
+        %ylabel(ax_label, "FontSize",labels_text_size)
+    end 
 
 end
 
-title(t, m_title, 'FontSize', 16);
 cluster_stats = "Cluster: P-value: " + num2str(round(pvalue, 3)) + ", Mass: " + num2str(cluster_size);
 peak_stats = "Max sample: T" + "(" + num2str(df) + ")=" + num2str(t_value) ...
-    + " Cohen's d: " + num2str(cohens_d) + ", Correlation: " + num2str(effect_size) + ", C: " + num2str(desired_cluster);
-subtitle(t, {cluster_stats, peak_stats}, 'FontSize', 14)
+    + " Cohen's d: " + num2str(cohens_d) + ", Correlation: " + num2str(effect_size);
+
+annotation('textbox', [0, 0.96, 1, 0.05], 'String', m_title, ...
+           'FontSize', 20, 'HorizontalAlignment', 'center', ...
+           'EdgeColor', 'none'); % Position the title at the top center
+
+annotation('textbox', [0, 0.93, 1, 0.05], 'String', cluster_stats, ...
+           'FontSize', 12, 'HorizontalAlignment', 'center', ...
+           'EdgeColor', 'none'); % Position the first subtitle just below the main title
+
+annotation('textbox', [0, 0.91, 1, 0.05], 'String', peak_stats, ...
+           'FontSize', 12, 'HorizontalAlignment', 'center', ...
+           'EdgeColor', 'none'); % Position the second subtitle just below the first
 
 
 if contains(experiment_type, 'partitions-2-8') && first_partition_regresion ~= 1 || contains(experiment_type, 'erps-23-45-67') 
-    set(gcf,'Position',[100 100 1250 1250])
-    exportgraphics(gcf,save_dir,'Resolution',500);
+    if plot_thin_med_thick == 1
+        set(gcf,'Position',[100 100 1250 1250])
+        exportgraphics(gcf,save_dir,'Resolution',750);
+    else
+        set(gcf,'Position',[1.8 85.8 1750 1250])
+        exportgraphics(gcf,save_dir,'Resolution',500);
+    end
 elseif contains(experiment_type, 'three-way-interaction')
-    set(gcf,'Position',[100 100 1300 1250]) 
-    p1 = text(-920, 90, 'Partition 1', 'Fontsize', 18, 'Rotation', 90, "FontWeight","bold");
-    p2 = text(-920, 50, 'Partition 2', 'Fontsize', 18, 'Rotation', 90, "FontWeight","bold");
-    p3 = text(-920, 10, 'Partition 3', 'Fontsize', 18, 'Rotation', 90, "FontWeight","bold");
-    exportgraphics(gcf,save_dir,'Resolution',500);
+   set(gcf,'Position',[1   49    1536    836.8])
+    %p1 = text(-1800, 95, 'Partition 1', 'Fontsize', 12, 'Rotation', 90, "FontWeight","bold");
+    %p2 = text(-1800, 65, 'Partition 2', 'Fontsize', 12, 'Rotation', 90, "FontWeight","bold");
+   % p3 = text(-1800, 55, 'Partition 3', 'Fontsize', 12, 'Rotation', 90, "FontWeight","bold");
+    exportgraphics(gcf,save_dir,'Resolution',750);
 else
-    set(gcf,'Position',[100 100 1000 750])
+    set(gcf,'Position',[1 49.8 1536 836])
     exportgraphics(gcf,save_dir,'Resolution',500);
 end
  close;
@@ -5235,9 +5925,27 @@ end
 
 %% applies the wavelett decomposition to the data
 function dataset = to_frequency_data(save_dir, partition, type, ...
-    participant_level, foi, analysis_type, filename, n_participants)
+    participant_level, foi, analysis_type, filename, n_participants, toi)
 
-num_cycles = 32;
+    low = foi(1);
+    high = foi(2);
+    
+    time_start = toi(1);
+    time_end = toi(2);
+
+    if low == 10 && high == 15
+        num_cycles = 5;
+    elseif low == 20 && high == 30
+        num_cycles = 13;
+    elseif low == 30 && high == 45
+        num_cycles = 17;
+    elseif low == 45 && high == 60
+        num_cycles = 24;
+    elseif low == 60 && high == 80
+        num_cycles = 32;
+    elseif low == 10 && high == 80
+        num_cycles = 5;
+    end
 
 cfg = [];
 cfg.channel = 'all';
@@ -5246,24 +5954,31 @@ cfg.width = num_cycles;
 cfg.output = 'pow';
 cfg.pad = 'nextpow2';
 cfg.foi = foi(1):1:foi(2);
-cfg.toi = -0.5:0.002:1.3;
+cfg.toi = -0.5:0.002:3.05;
 cfg.keeptrials = 'yes';
 
 
 dataset = {};
 for i=1:n_participants
-    save_path = strcat(save_dir, int2str(i), '/', analysis_type, '_', int2str(partition.partition_number), '_');
+
+    main_dir = strcat(save_dir, int2str(i), '\', 'frequency_domain');
+
+    if not(exist(main_dir, 'dir'))
+        mkdir(main_dir);
+    end
+
+    save_path = strcat(save_dir, int2str(i), '\', 'frequency_domain\', analysis_type, '_', int2str(partition.partition_number), '_');
 
 
-    full_save_dir = save_path + "trial_level_" + int2str(foi(1)) + "_" + int2str(foi(2)) + "_numcycles_" + int2str(num_cycles) + ".mat";
+    full_save_dir = save_path + "trial_level_" + int2str(foi(1)) + "_" + int2str(foi(2)) + "_numcycles_" + int2str(num_cycles) + "_" + num2str(time_start) + "_" + num2str(time_end) + ".mat";
 
     if strcmp(type, 'preprocess')
-
+      
         % if we want to preprocess, load each participants data
         disp(strcat('LOADING PARTICIPANT...', int2str(i)));
         participant_main_path = strcat(save_dir, int2str(i));
         [participant, participant_number] = load_one_postprocessed_data( ...
-            participant_main_path, filename, partition, i);
+            main_dir, filename, partition, i);
 
         if participant_number == -9999
             continue;
