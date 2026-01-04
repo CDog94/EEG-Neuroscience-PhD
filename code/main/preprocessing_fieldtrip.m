@@ -4,7 +4,7 @@
 clear all;
 restoredefaultpath;
 addpath('C:\Users\CDoga\Documents\Research\fieldtrip-20240214');
-addpath('C:\Users\CDoga\Documents\Research\spm12')
+addpath('C:\Users\CDoga\Documents\Research\spm25')
 ft_defaults;
 cd("C:\Users\CDoga\Documents\Research\preprocessing\after_spm_script");
     
@@ -13,10 +13,10 @@ cd("C:\Users\CDoga\Documents\Research\preprocessing\after_spm_script");
 main_path = 'C:\Users\CDoga\Documents\Research\PhD\participant_';
 
 to_preprocess = {'mean_intercept'};
-type_of_analysis = 'frequency_domain'; % or time_domain
+type_of_analysis = 'time_domain'; % or time_domain
 
 onsets = [
-    2,3; 4,5; 6,7
+    2,3,4,5,6,7,8
 ];
 
 number_of_onsets = size(onsets);

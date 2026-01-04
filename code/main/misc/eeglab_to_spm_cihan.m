@@ -1,14 +1,15 @@
 n_participants = 40;
-addpath('/Users/cihandogan/Documents/Research/spm12')
-main_path = '/Users/cihandogan/Documents/Research/preprocessing/after_spm_script/participant_';
-addpath('/Users/cihandogan/Documents/Research/fieldtrip-20230118');
+clear all;
+restoredefaultpath;
+addpath('C:\Users\CDoga\Documents\Research\fieldtrip-20240214');
+addpath('C:\Users\CDoga\Documents\Research\spm12')
 ft_defaults;
-clear matlabbatch
-ft_defaults;
+cd("C:\Users\CDoga\Documents\Research\preprocessing\after_spm_script");
+main_path = 'C:\Users\CDoga\Documents\Research\PhD\participant_';
+clear matlabbatch;
 
-spm eeg;
 
-for participant =  [27, 36,]%1:n_participants
+for participant =  1:1 %1:n_participants
     %% get the correct file path
     clear matlabbatch
     disp(strcat('Procesisng participant..',int2str(participant)));
@@ -26,8 +27,8 @@ for participant =  [27, 36,]%1:n_participants
         
         cd(participant_main_path);
         
-        p = strcat(p, '-Deci_ready_for_ft.set');
-        participant_file_path = strcat(participant_main_path, '/');
+        p = strcat(p, '_075_80Hz.set');
+        participant_file_path = strcat(participant_main_path, '\');
         participant_file_path = strcat(participant_file_path, p);
         
         %% convert to SPM ready file

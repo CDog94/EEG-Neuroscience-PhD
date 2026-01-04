@@ -6,3 +6,11 @@ code/main/stats_experiment/results/pvalue_correction_poly_model.mat
 code/main/stats_experiment/results/pvalue_correction_full_data.mat
 code/main/stats_experiment/results/pvalue_correction_poly_model_mixed.mat
 code/main/stats_experiment/results/pvalue_correction_full_data_mixed.mat
+code/main/stats_experiment/part_2_pvalue_correction/data/fieldtrip_pvalue_data_enhanced_2025-07-20_17-56-57.parquet
+code/main/stats_experiment/part_2_pvalue_correction/data/full_combined_fieldtrip_pvalue_data_theoretical_moments_2025-07-14_21-46-23.parquet
+code/main/stats_experiment/part_2_pvalue_correction/data/permutation_pvalue_data_fast_2025-08-10_00-58-30.parquet
+code/main/stats_experiment/part_2_pvalue_correction/data/individually_dist_data_uniform_per_distribution_2025-07-14_21-32-12.parquet
+code/main/stats_experiment/part_2_pvalue_correction/two_sample.parquet
+code/main/stats_experiment/part_2_pvalue_correction/sign_swap.parquet
+*.parquet
+*.mat
